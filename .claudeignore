@@ -1,0 +1,10 @@
+vendor/
+node_modules/
+public/pyodide/
+public/build/
+storage/
+bootstrap/cache/
+composer.lock
+package-lock.json
+*.log
+*.sql

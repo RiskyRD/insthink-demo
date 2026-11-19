@@ -7,6 +7,27 @@
  * Pesan keluar: { type: 'ready' } | { type: 'load-error', message }
  *               { type: 'result', id, stdout, transcript, error, unusedInputs }
  */
+// Server lab sering mengirim .wasm tanpa header "application/wasm", sehingga
+// WebAssembly.instantiateStreaming ditolak browser. Pyodide 0.26 tidak punya
+// fallback, jadi kita ganti dengan versi ArrayBuffer yang tidak peduli MIME type.
+(() => {
+  const toBytes = async (source) => {
+    const response = await source;
+    if (!response.ok) {
+      throw new Error(`Berkas mesin Python tidak ditemukan (HTTP ${response.status}): ${response.url}`);
+    }
+    const bytes = await response.arrayBuffer();
+    const head = new Uint8Array(bytes, 0, 4);
+    if (head[0] !== 0x00 || head[1] !== 0x61 || head[2] !== 0x73 || head[3] !== 0x6d) {
+      throw new Error(`Server tidak mengirim berkas WebAssembly yang valid: ${response.url}`);
+    }
+    return bytes;
+  };
+  WebAssembly.instantiateStreaming = async (source, imports) =>
+    WebAssembly.instantiate(await toBytes(source), imports);
+  WebAssembly.compileStreaming = async (source) => WebAssembly.compile(await toBytes(source));
+})();
+
 importScripts('/pyodide/pyodide.js');
 
 let pyodide = null;

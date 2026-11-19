@@ -7,7 +7,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
- * Fase permainan berganti (prolog → chapter1 → chapter2 → finished).
+ * Fase permainan berganti (prolog → chapter1 → bonus → chapter3 → finished).
  * Payload netral (Room::publicSummary + shopState), dikirim ke kedua peran.
  */
 class GamePhaseChanged implements ShouldBroadcastNow

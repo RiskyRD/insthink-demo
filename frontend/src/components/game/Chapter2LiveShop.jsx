@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Banknote, BellRing, CheckCircle2, ChefHat, Clock, Coins, Loader2, Lock, PackageCheck, PackagePlus,
-  Receipt, ShoppingBag, Snowflake, Store, Target, TrendingDown, TrendingUp, Trophy, Users, Warehouse,
+  Receipt, Rocket, ShoppingBag, Snowflake, Store, Target, TrendingDown, TrendingUp, Trophy, Users, Warehouse, FastForward,
 } from 'lucide-react';
 import BuRatnaCharacter from './BuRatnaCharacter';
 import HintBanner from './HintBanner';
 import VillagerAvatar from './VillagerAvatar';
-import { CashierCharacter, WarehouseCharacter } from './ShopCharacters';
+import { RoleCharacter } from './ShopCharacters';
 import IngredientIcon from './chapter2/IngredientIcon';
 import { useGameAudio } from './useGameAudio';
 import { CARD, TACTILE, WOOD_BG } from './theme';
@@ -66,18 +66,52 @@ function stockTone(stock) {
 }
 
 /**
- * Chapter 2: kedai berjalan live. Semua angka kas/stok berasal dari server
+ * Bab Bonus: Simulasi Kedai Live. Semua angka kas/stok berasal dari server
  * (`shop`), diperbarui lewat event shop.updated dan respons HTTP aksi sendiri.
  *
+ * Saat target kas tercapai atau semua gelombang pelanggan habis, layar ringkasan
+ * Bab Bonus tampil dengan tombol menuju Bab 3 (POST bonus-complete).
+ *
  * @param {(state: object, action: object) => void} onActionDone  respons serve/restock milik pemain ini
+ * @param {(state: object) => void} onStateChange  respons POST bonus-complete
  */
-export default function Chapter2LiveShop({ me, room, partner, shop, catalog, token, realtime, hints = [], onDismissHint, ledger, onActionDone }) {
+export default function Chapter2LiveShop({ me, room, partner, shop, catalog, token, realtime, hints = [], onDismissHint, ledger, onActionDone, onStateChange }) {
   const served = shop.customers_served;
   const queue = useMemo(() => queueFrom(room.room_code, served), [room.room_code, served]);
   const wavesDone = served >= TOTAL_CUSTOMERS;
+  const targetReached = shop.shared_money >= shop.target_money;
+  const bonus = useBonusComplete(room, token, onStateChange);
 
-  if (wavesDone) {
-    return <ShopResultScreen variant="evaluation" me={me} partner={partner} room={room} shop={shop} ledger={ledger} />;
+  if (targetReached || wavesDone) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-5">
+        <BonusBanner summary />
+        <ShopResultScreen
+          variant={targetReached ? 'victory' : 'evaluation'}
+          context="bonus"
+          me={me}
+          partner={partner}
+          room={room}
+          shop={shop}
+          ledger={ledger}
+          action={
+            <div className="mt-6 flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={bonus.finish}
+                disabled={bonus.busy}
+                className={`${TACTILE} prolog-cta-pulse flex items-center gap-2 rounded-2xl bg-[#ffd23f] px-6 py-3.5 text-lg font-black text-slate-900 disabled:opacity-60`}
+              >
+                {bonus.busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <Rocket className="h-5 w-5" aria-hidden />}
+                Lanjut ke Bab 3: Coding Money Tracker
+              </button>
+              <p className="text-xs font-semibold text-slate-500">Cukup salah satu dari kalian yang menekan; layar partnermu ikut berpindah.</p>
+              {bonus.error && <p className="text-sm font-semibold text-rose-700" role="alert">{bonus.error}</p>}
+            </div>
+          }
+        />
+      </div>
+    );
   }
 
   const sendPing = (kind, title, content) =>
@@ -85,6 +119,7 @@ export default function Chapter2LiveShop({ me, room, partner, shop, catalog, tok
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
+      <BonusBanner target={shop.target_money} skip={bonus} />
       <SharedHud shop={shop} served={served} />
       <HintBanner hints={hints} onDismiss={onDismissHint} />
       {me.role === 'cashier' ? (
@@ -93,6 +128,93 @@ export default function Chapter2LiveShop({ me, room, partner, shop, catalog, tok
         <WarehouseRoom me={me} partner={partner} room={room} shop={shop} catalog={catalog} token={token} queue={queue} realtime={realtime} sendPing={sendPing} onActionDone={onActionDone} />
       )}
     </div>
+  );
+}
+
+/** POST bonus-complete: menutup Bab Bonus untuk kedua pemain dan masuk ke Bab 3. */
+function useBonusComplete(room, token, onStateChange) {
+  const { playClick, playError } = useGameAudio();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const finish = async () => {
+    if (busy) return;
+    playClick();
+    setBusy(true);
+    setError(null);
+    try {
+      const state = await api(`/rooms/${room.room_code}/bonus-complete`, { method: 'POST', token });
+      onStateChange?.(state);
+    } catch (err) {
+      setError(err.message);
+      playError();
+      setBusy(false);
+    }
+  };
+
+  return { busy, error, finish };
+}
+
+/**
+ * Banner judul Bab Bonus. Saat bermain, berisi tombol "Lanjut ke Bab 3 Sekarang"
+ * dengan konfirmasi singkat untuk kelas yang waktunya hampir habis.
+ */
+function BonusBanner({ target, skip, summary = false }) {
+  const { playClick } = useGameAudio();
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <section className={`${CARD} overflow-hidden`} aria-labelledby="bonus-title">
+      <div className="flex flex-wrap items-center gap-3 border-b-2 border-slate-800 px-4 py-3" style={WOOD_BG}>
+        <span className="rounded-full border-2 border-slate-800 bg-[#ffd23f] px-3 py-0.5 text-xs font-black tracking-wider text-slate-900 shadow-[2px_2px_0px_#1e293b]">
+          BAB BONUS
+        </span>
+        <h2 id="bonus-title" className="min-w-0 flex-1 text-lg font-black text-[#fff3d6] [text-shadow:2px_2px_0_#3e2210] sm:text-xl">
+          BAB BONUS • Simulasi Kedai Kopi &amp; Camilan Live
+        </h2>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+        <p className="min-w-0 flex-1 text-sm font-semibold leading-relaxed text-slate-700">
+          {summary
+            ? 'Bab Bonus selesai! Lihat hasil kerja sama kalian, lalu lanjutkan ke tantangan coding terakhir.'
+            : `Tahap bonus untuk menguji sistem Kasir dan Stok Gudang yang sudah kalian rakit di Bab 1. Capai kas ${formatRupiah(target)} sebelum lanjut ke Bab 3: Coding Money Tracker.`}
+        </p>
+
+        {skip && !confirming && (
+          <button
+            type="button"
+            onClick={() => { playClick(); setConfirming(true); }}
+            className={`${TACTILE} flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-sm font-black text-slate-900`}
+          >
+            <FastForward className="h-4 w-4" aria-hidden /> Lanjut ke Bab 3 Sekarang
+          </button>
+        )}
+
+        {skip && confirming && (
+          <div className="hint-in flex w-full flex-wrap items-center gap-2 rounded-xl border-2 border-slate-800 bg-[#fff1c1] px-3 py-2 sm:w-auto" role="alertdialog" aria-label="Konfirmasi lanjut ke Bab 3">
+            <span className="text-sm font-bold text-slate-800">Waktu hampir habis? Kedai ditutup untuk kalian berdua.</span>
+            <button
+              type="button"
+              onClick={skip.finish}
+              disabled={skip.busy}
+              autoFocus
+              className={`${TACTILE} flex items-center gap-1.5 rounded-lg bg-[#4f8f3a] px-3 py-1 text-sm font-black text-white disabled:opacity-60`}
+            >
+              {skip.busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />} Ya, lanjut
+            </button>
+            <button
+              type="button"
+              onClick={() => { playClick(); setConfirming(false); }}
+              disabled={skip.busy}
+              className={`${TACTILE} rounded-lg bg-white px-3 py-1 text-sm font-bold text-slate-900`}
+            >
+              Batal
+            </button>
+          </div>
+        )}
+        {skip?.error && <p className="w-full text-sm font-semibold text-rose-700" role="alert">{skip.error}</p>}
+      </div>
+    </section>
   );
 }
 
@@ -351,8 +473,8 @@ function CookingStation({ customer, me, partner, room, shop, catalog, token, rea
           <p className="text-sm font-semibold text-slate-600">Pesanan {customer.name} · {formatRupiah(price)}</p>
         </div>
         <div className="flex items-end gap-2">
-          <CashierCharacter mood={submitting ? 'thinking' : mood} size={90} caption={`${me.name} (Kamu)`} />
-          <WarehouseCharacter mood={!partner || !realtime.partnerOnline ? 'offline' : 'idle'} size={72} caption={partner?.name ?? 'Gudang'} dim />
+          <RoleCharacter role="cashier" gender={me.avatar_skin} mood={submitting ? 'thinking' : mood} size={90} caption={`${me.name} (Kamu)`} />
+          <RoleCharacter role="warehouse" gender={partner?.avatar_skin} mood={!partner || !realtime.partnerOnline ? 'offline' : 'idle'} size={72} caption={partner?.name ?? 'Gudang'} dim />
         </div>
       </div>
 
@@ -536,8 +658,8 @@ function WarehouseRoom({ me, partner, room, shop, catalog, token, queue, realtim
             <p className="text-sm font-semibold text-slate-600">Maksimal {maxStock} unit per bahan · paket kulakan +{PACK_SIZE} unit</p>
           </div>
           <div className="flex items-end gap-2">
-            <WarehouseCharacter mood={busy ? 'thinking' : say?.mood ?? (shortages.length ? 'shocked' : 'idle')} size={90} caption={`${me.name} (Kamu)`} />
-            <CashierCharacter mood={!partner || !realtime.partnerOnline ? 'offline' : 'idle'} size={72} caption={partner?.name ?? 'Kasir'} dim />
+            <RoleCharacter role="warehouse" gender={me.avatar_skin} mood={busy ? 'thinking' : say?.mood ?? (shortages.length ? 'shocked' : 'idle')} size={90} caption={`${me.name} (Kamu)`} />
+            <RoleCharacter role="cashier" gender={partner?.avatar_skin} mood={!partner || !realtime.partnerOnline ? 'offline' : 'idle'} size={72} caption={partner?.name ?? 'Kasir'} dim />
           </div>
         </div>
 
@@ -646,7 +768,8 @@ function WarehouseRoom({ me, partner, room, shop, catalog, token, queue, realtim
 // ----------------------------------------------------------------------
 // Layar akhir: kemenangan (target tercapai) atau evaluasi (6 gelombang habis)
 // ----------------------------------------------------------------------
-export function ShopResultScreen({ variant = 'victory', me, partner, room, shop, ending, ledger }) {
+export function ShopResultScreen({ variant = 'victory', context = 'final', me, partner, room, shop, ending, ledger, action = null }) {
+  const inBonus = context === 'bonus';
   const victory = variant === 'victory';
   const [frozenNow] = useState(() => Date.now());
   const endAt = room.completed_at ? Date.parse(room.completed_at) : frozenNow;
@@ -655,6 +778,7 @@ export function ShopResultScreen({ variant = 'victory', me, partner, room, shop,
     ?? (room.started_at ? Math.max(0, Math.round((endAt - Date.parse(room.started_at)) / 1000)) : null);
   const efficiency = stockEfficiency(ledger);
   const names = { [me.role]: me.name, ...(partner ? { [partner.role]: partner.name } : {}) };
+  const skins = { [me.role]: me.avatar_skin, ...(partner ? { [partner.role]: partner.avatar_skin } : {}) };
 
   return (
     <section className="relative mx-auto max-w-4xl overflow-hidden" aria-labelledby="result-title">
@@ -672,18 +796,22 @@ export function ShopResultScreen({ variant = 'victory', me, partner, room, shop,
       <div className={`${CARD} celebration-pop relative p-6 text-center`}>
         {victory ? <Trophy className="trophy-bounce mx-auto h-14 w-14 text-amber-500" aria-hidden /> : <Clock className="mx-auto h-14 w-14 text-sky-600" aria-hidden />}
         <h2 id="result-title" className="mt-2 text-3xl font-black text-slate-900">
-          {victory ? 'Target Tercapai! Kedai Sukses!' : 'Semua Gelombang Pelanggan Selesai'}
+          {inBonus
+            ? victory ? 'Target Rp120.000 Tercapai! Bab Bonus Selesai' : 'Semua Gelombang Pelanggan Selesai'
+            : victory ? 'Target Tercapai! Kedai Sukses!' : 'Semua Gelombang Pelanggan Selesai'}
         </h2>
         <p className="mx-auto mt-1 max-w-xl text-slate-600">
           {victory
-            ? ending?.message ?? 'Kerja sama Kasir dan Stok Gudang membuat kedai desa semakin maju.'
+            ? ending?.message ?? (inBonus
+              ? 'Sistem Kasir dan Stok Gudang rakitan kalian terbukti bekerja. Sekarang saatnya mencatat keuangan kedai dengan kode Python!'
+              : 'Kerja sama Kasir dan Stok Gudang membuat kedai desa semakin maju.')
             : `Kas akhir ${formatRupiah(shop.shared_money)} dari target ${formatRupiah(shop.target_money)}. Ayo evaluasi: di mana uang paling banyak keluar?`}
         </p>
 
         <div className="mt-4 flex items-end justify-center gap-2">
-          <CashierCharacter mood={victory ? 'happy' : 'thinking'} size={100} caption={names.cashier ?? 'Kasir'} />
+          <RoleCharacter role="cashier" gender={skins.cashier} mood={victory ? 'happy' : 'thinking'} size={100} caption={names.cashier ?? 'Kasir'} />
           <BuRatnaCharacter mood={victory ? 'happy' : 'thinking'} size={110} />
-          <WarehouseCharacter mood={victory ? 'happy' : 'thinking'} size={100} caption={names.warehouse ?? 'Penjaga Gudang'} />
+          <RoleCharacter role="warehouse" gender={skins.warehouse} mood={victory ? 'happy' : 'thinking'} size={100} caption={names.warehouse ?? 'Penjaga Gudang'} />
         </div>
 
         <dl className="mt-6 grid gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
@@ -695,6 +823,7 @@ export function ShopResultScreen({ variant = 'victory', me, partner, room, shop,
         <p className="mt-4 text-sm font-bold text-slate-700">
           Laba bersih kedai: <span className={shop.shared_money - 50000 >= 0 ? 'text-emerald-700' : 'text-rose-700'}>{formatRupiah(shop.shared_money - 50000)}</span> · {shop.customers_served} pelanggan terlayani
         </p>
+        {action}
       </div>
     </section>
   );

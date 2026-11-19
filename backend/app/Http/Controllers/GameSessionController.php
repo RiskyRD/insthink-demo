@@ -36,6 +36,7 @@ class GameSessionController extends Controller
             'player_name' => ['required', 'string', 'min:2', 'max:50'],
             'room_code' => ['nullable', 'string', 'size:6', 'alpha_num'],
             'role' => ['nullable', Rule::in(RoomPlayer::ROLES)],
+            'avatar_skin' => ['nullable', Rule::in(RoomPlayer::SKINS)],
         ], [
             'player_name.required' => 'Nama pemain wajib diisi.',
             'player_name.min' => 'Nama pemain minimal 2 huruf.',
@@ -43,13 +44,15 @@ class GameSessionController extends Controller
             'room_code.size' => 'Kode ruangan harus terdiri dari 6 karakter.',
             'room_code.alpha_num' => 'Kode ruangan hanya berisi huruf dan angka.',
             'role.in' => 'Peran harus Kasir atau Stok Gudang.',
+            'avatar_skin.in' => 'Pilihan avatar harus laki-laki atau perempuan.',
         ]);
+        $skin = $data['avatar_skin'] ?? RoomPlayer::SKIN_MALE;
 
         [$plainToken, $hashedToken] = RoomPlayer::issueToken();
         $name = trim(strip_tags($data['player_name']));
 
         try {
-            [$room, $player, $isNewRoom] = DB::transaction(function () use ($data, $name, $hashedToken) {
+            [$room, $player, $isNewRoom] = DB::transaction(function () use ($data, $name, $hashedToken, $skin) {
                 if (empty($data['room_code'])) {
                     $room = Room::create([
                         'room_code' => Room::generateUniqueCode(),
@@ -61,6 +64,7 @@ class GameSessionController extends Controller
                     $player = $room->players()->create([
                         'player_name' => $name,
                         'role' => $data['role'] ?? RoomPlayer::ROLE_CASHIER,
+                        'avatar_skin' => $skin,
                         'session_token' => $hashedToken,
                     ]);
 
@@ -84,6 +88,7 @@ class GameSessionController extends Controller
                 $player = $room->players()->create([
                     'player_name' => $name,
                     'role' => $role,
+                    'avatar_skin' => $skin,
                     'session_token' => $hashedToken,
                 ]);
 
@@ -159,7 +164,7 @@ class GameSessionController extends Controller
     /**
      * POST /api/rooms/{roomCode}/chapter1-complete
      * Menyimpan log kode dari Pyodide dan menandai pemain selesai Chapter 1.
-     * Jika kedua pemain selesai → fase "chapter2".
+     * Jika kedua pemain selesai → fase "bonus" (Bab Bonus: Simulasi Kedai Live).
      */
     public function chapter1Complete(string $roomCode, Request $request): JsonResponse
     {
@@ -198,7 +203,7 @@ class GameSessionController extends Controller
             $room->load('players');
 
             if ($room->isFull() && $room->players->every(fn (RoomPlayer $p) => $p->is_chapter1_done)) {
-                return [$room, $me, [$this->changePhase($room, Room::PHASE_CHAPTER2)]];
+                return [$room, $me, [$this->changePhase($room, Room::PHASE_BONUS)]];
             }
 
             return [$room, $me, [new RoomUpdated($room->room_code, $room->publicSummary(), 'chapter1_done')]];
@@ -210,8 +215,8 @@ class GameSessionController extends Controller
     }
 
     /**
-     * POST /api/rooms/{roomCode}/chapter1-attempt
-     * Mencatat uji kode Chapter 1 yang GAGAL (is_passed = false) di mission_logs.
+     * POST /api/rooms/{roomCode}/chapter1-attempt  (juga /chapter3-attempt)
+     * Mencatat uji kode Chapter 1 / Chapter 3 yang GAGAL (is_passed = false) di mission_logs.
      * Tidak mengubah fase maupun state kedai; hanya dipakai dashboard fasilitator.
      */
     public function chapter1Attempt(string $roomCode, Request $request): JsonResponse
@@ -224,15 +229,22 @@ class GameSessionController extends Controller
             'error_category' => ['nullable', 'string', 'max:40'],
         ]);
 
+        // Dipakai Chapter 1 (chapter1-attempt) dan Chapter 3 (chapter3-attempt):
+        // nomor misi mengikuti fase ruangan saat ini.
         $room = $player->room;
-        if ($room->phase !== Room::PHASE_CHAPTER1 || $player->is_chapter1_done) {
+        $mission = match (true) {
+            $room->phase === Room::PHASE_CHAPTER1 && ! $player->is_chapter1_done => 1,
+            $room->phase === Room::PHASE_CHAPTER3 && ! $player->is_chapter3_done => 3,
+            default => null,
+        };
+        if ($mission === null) {
             return response()->json(['logged' => false]);
         }
 
         $startedAt = $room->phase_started_at ?? $room->started_at;
         $room->missionLogs()->create([
             'room_player_id' => $player->id,
-            'mission_number' => 1,
+            'mission_number' => $mission,
             'submitted_code' => $data['code'],
             'terminal_output' => $data['output'] ?? '',
             'is_passed' => false,
@@ -243,6 +255,106 @@ class GameSessionController extends Controller
         $this->notifyMonitor();
 
         return response()->json(['logged' => true], 201);
+    }
+
+    /**
+     * POST /api/rooms/{roomCode}/bonus-complete
+     * Salah satu pemain menutup Bab Bonus (Simulasi Kedai Live) → fase "chapter3".
+     * Dipanggil dari layar ringkasan (target tercapai / gelombang habis) atau
+     * tombol "Lanjut ke Bab 3 Sekarang" saat waktu kelas hampir habis.
+     */
+    public function bonusComplete(string $roomCode, Request $request): JsonResponse
+    {
+        $player = $this->authorizePlayer($request, $roomCode);
+
+        [$room, $me, $events] = $this->withRoomLock($player->room_id, fn () => DB::transaction(function () use ($player) {
+            [$room, $me] = $this->lockRoomAndPlayer($player);
+
+            abort_if(
+                in_array($room->phase, [Room::PHASE_PROLOG, Room::PHASE_CHAPTER1], true),
+                409,
+                'Bab Bonus belum dimulai. Selesaikan Chapter 1 bersama pasanganmu dulu.',
+            );
+
+            // Sudah di Bab 3 atau selesai (mis. pasangan menekan lebih dulu): tidak ada perubahan.
+            if ($room->phase !== Room::PHASE_BONUS) {
+                return [$room, $me, []];
+            }
+
+            return [$room, $me, [$this->changePhase($room, Room::PHASE_CHAPTER3)]];
+        }));
+
+        $this->broadcastAll($events);
+
+        return response()->json($this->projector->state($room, $me));
+    }
+
+    /**
+     * POST /api/rooms/{roomCode}/chapter3-complete
+     * Menyimpan kode Money Tracker yang lulus, jumlah percobaan, dan durasi pengerjaan.
+     * Jika kedua pemain selesai → fase "finished".
+     */
+    public function chapter3Complete(string $roomCode, Request $request): JsonResponse
+    {
+        $player = $this->authorizePlayer($request, $roomCode);
+
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:5000'],
+            'output' => ['nullable', 'string', 'max:5000'],
+            'attempt_count' => ['required', 'integer', 'min:1', 'max:1000'],
+            'duration_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
+        ], [
+            'code.required' => 'Kode program masih kosong.',
+            'code.max' => 'Kode program terlalu panjang (maksimal 5000 karakter).',
+            'output.max' => 'Keluaran program terlalu panjang (maksimal 5000 karakter).',
+            'attempt_count.required' => 'Jumlah percobaan wajib dikirim.',
+            'attempt_count.integer' => 'Jumlah percobaan harus berupa angka.',
+            'attempt_count.min' => 'Jumlah percobaan minimal 1.',
+            'attempt_count.max' => 'Jumlah percobaan terlalu besar.',
+            'duration_seconds.integer' => 'Durasi pengerjaan harus berupa angka (detik).',
+            'duration_seconds.min' => 'Durasi pengerjaan tidak boleh negatif.',
+            'duration_seconds.max' => 'Durasi pengerjaan terlalu lama (maksimal 24 jam).',
+        ]);
+
+        [$room, $me, $events] = $this->withRoomLock($player->room_id, fn () => DB::transaction(function () use ($player, $data) {
+            [$room, $me] = $this->lockRoomAndPlayer($player);
+
+            abort_if(
+                in_array($room->phase, [Room::PHASE_PROLOG, Room::PHASE_CHAPTER1, Room::PHASE_BONUS], true),
+                409,
+                'Bab 3 belum dimulai. Selesaikan Bab Bonus bersama pasanganmu dulu.',
+            );
+
+            if ($room->phase !== Room::PHASE_CHAPTER3 || $me->is_chapter3_done) {
+                return [$room, $me, []];
+            }
+
+            $startedAt = $room->phase_started_at;
+            $room->missionLogs()->create([
+                'room_player_id' => $me->id,
+                'mission_number' => 3,
+                'submitted_code' => $data['code'],
+                'terminal_output' => $data['output'] ?? '',
+                'is_passed' => true,
+                'error_category' => null,
+                'attempt_count' => $data['attempt_count'],
+                'duration_seconds' => $data['duration_seconds']
+                    ?? ($startedAt ? max(0, (int) $startedAt->diffInSeconds(now())) : 0),
+            ]);
+
+            $me->update(['is_chapter3_done' => true]);
+            $room->load('players');
+
+            if ($room->isFull() && $room->players->every(fn (RoomPlayer $p) => $p->is_chapter3_done)) {
+                return [$room, $me, [$this->changePhase($room, Room::PHASE_FINISHED)]];
+            }
+
+            return [$room, $me, [new RoomUpdated($room->room_code, $room->publicSummary(), 'chapter3_done')]];
+        }));
+
+        $this->broadcastAll($events);
+
+        return response()->json($this->projector->state($room, $me));
     }
 
     /**
@@ -301,13 +413,11 @@ class GameSessionController extends Controller
             $room->save();
 
             $room->load('players');
-            $events = [];
 
-            if ($room->shared_money >= $room->target_money) {
-                $events[] = $this->changePhase($room, Room::PHASE_FINISHED);
-            }
-
-            array_unshift($events, new ShopStateUpdated($room->room_code, $room->shopState(), $room->publicSummary(), [
+            // Target kas tercapai: fase tetap "bonus" agar kedua pemain melihat ringkasan
+            // Bab Bonus; pindah ke Bab 3 lewat POST bonus-complete. Kedai otomatis tutup
+            // (lihat ensureShopOpen).
+            $events = [new ShopStateUpdated($room->room_code, $room->shopState(), $room->publicSummary(), [
                 'type' => 'serve',
                 'role' => $me->role,
                 'by' => $me->player_name,
@@ -315,7 +425,7 @@ class GameSessionController extends Controller
                 'label' => $menu['name'],
                 'money_delta' => $menu['price'],
                 'inventory_delta' => $delta,
-            ]));
+            ])];
 
             return [$room, $me, $events];
         }));
@@ -434,11 +544,20 @@ class GameSessionController extends Controller
 
     private function ensureShopOpen(Room $room): void
     {
-        abort_if($room->phase === Room::PHASE_FINISHED, 409, 'Target pendapatan sudah tercapai. Kedai sudah tutup untuk hari ini.');
+        abort_if(
+            in_array($room->phase, [Room::PHASE_CHAPTER3, Room::PHASE_FINISHED], true),
+            409,
+            'Bab Bonus sudah selesai. Kedai sudah tutup, ayo lanjut ke Bab 3: Money Tracker.',
+        );
         abort_unless(
-            $room->phase === Room::PHASE_CHAPTER2,
+            $room->phase === Room::PHASE_BONUS,
             409,
             'Kedai belum buka. Selesaikan Chapter 1 bersama pasanganmu dulu.',
+        );
+        abort_if(
+            $room->shared_money >= $room->target_money,
+            409,
+            'Target kas sudah tercapai. Kedai tutup, ayo lanjut ke Bab 3: Coding Money Tracker!',
         );
     }
 

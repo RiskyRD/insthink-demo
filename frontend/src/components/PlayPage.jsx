@@ -4,12 +4,14 @@ import VillageBackdrop from './game/VillageBackdrop';
 import GameHud from './game/GameHud';
 import PrologBriefing from './game/PrologBriefing';
 import Chapter1BlockCoding, { ShopOpeningTransition } from './game/Chapter1BlockCoding';
-import Chapter2LiveShop, { ShopResultScreen } from './game/Chapter2LiveShop';
+import Chapter2LiveShop from './game/Chapter2LiveShop';
+import Chapter3MoneyTracker from './game/Chapter3MoneyTracker';
+import FinalVictoryScreen from './game/FinalVictoryScreen';
 import { loadLedger, recordAction, saveLedger } from './game/chapter2/shopData';
 import { HINT_KINDS } from './game/HintBanner';
 import { useGameAudio } from './game/useGameAudio';
 import { useRoomRealtime } from '../hooks/useRoomRealtime';
-import { PARTNER_ROLE, ROLE_LABEL } from '../lib/api';
+import { api, PARTNER_ROLE, ROLE_LABEL } from '../lib/api';
 
 const clip = (value, max) => (typeof value === 'string' ? value.slice(0, max) : '');
 
@@ -28,15 +30,17 @@ function sanitizeHint(payload) {
   };
 }
 
-// Transisi chapter1 → chapter2 ditampilkan lewat ShopOpeningTransition, bukan toast.
+// Transisi chapter1 → bonus ditampilkan lewat ShopOpeningTransition, bukan toast.
 const PHASE_TOAST = {
   chapter1: 'Kalian berdua sudah siap. Chapter 1 dimulai!',
-  finished: 'Target pendapatan tercapai. Selamat!',
+  chapter3: 'Bab Bonus selesai. Saatnya Bab 3: Coding Money Tracker!',
+  finished: 'Kalian berdua menyelesaikan Bab 3. Selamat!',
 };
 
 /**
  * Halaman bermain. Konten dipilih berdasarkan `room.phase` dari server:
- * prolog → PrologBriefing, chapter1 → Chapter1BlockCoding, chapter2 → Chapter2LiveShop, finished → ShopResultScreen.
+ * prolog → PrologBriefing, chapter1 → Chapter1BlockCoding, bonus → Chapter2LiveShop (Bab Bonus),
+ * chapter3 → Chapter3MoneyTracker, finished → FinalVictoryScreen.
  */
 export default function PlayPage({ session, initialState, onLeave }) {
   const [game, setGame] = useState(initialState);
@@ -62,15 +66,15 @@ export default function PlayPage({ session, initialState, onLeave }) {
   }, [initialState.room.room_code]);
 
   useEffect(() => {
-    if (room.phase === 'chapter2' && !ledger.chapter2StartedAt) {
+    if (room.phase === 'bonus' && !ledger.chapter2StartedAt) {
       updateLedger((l) => ({ ...l, chapter2StartedAt: room.phase_started_at ?? new Date().toISOString() }));
     }
   }, [room.phase, room.phase_started_at, ledger.chapter2StartedAt, updateLedger]);
 
-  // chapter1 → chapter2 lewat event Reverb ATAU respons HTTP pemain kedua → animasi "Toko Resmi Dibuka!".
+  // chapter1 → bonus lewat event Reverb ATAU respons HTTP pemain kedua → animasi "Toko Resmi Dibuka!".
   const prevPhaseRef = useRef(room.phase);
   useEffect(() => {
-    if (prevPhaseRef.current === 'chapter1' && room.phase === 'chapter2') setShopOpening(true);
+    if (prevPhaseRef.current === 'chapter1' && room.phase === 'bonus') setShopOpening(true);
     prevPhaseRef.current = room.phase;
   }, [room.phase]);
 
@@ -83,6 +87,19 @@ export default function PlayPage({ session, initialState, onLeave }) {
   /** State lengkap dari respons HTTP (mis. POST prolog-ready). */
   const applyState = useCallback((state) => setGame((g) => ({ ...g, ...state })), []);
 
+  // Event game.phase_changed tidak membawa `ending` (skor); ambil state lengkap saat permainan selesai.
+  const needsEnding = room.phase === 'finished' && !game.ending;
+  useEffect(() => {
+    if (!needsEnding) return undefined;
+    let cancelled = false;
+    api(`/rooms/${initialState.room.room_code}/state`, { token: session.token })
+      .then((state) => !cancelled && applyState(state))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [needsEnding, initialState.room.room_code, session.token, applyState]);
+
   const handleRoomUpdated = useCallback(({ room: nextRoom, reason }) => {
     setGame((g) => ({ ...g, room: nextRoom }));
     if (reason === 'player_joined') showToast('Partnermu sudah bergabung!');
@@ -94,7 +111,7 @@ export default function PlayPage({ session, initialState, onLeave }) {
       return { ...g, room: nextRoom, shop: nextShop, me: mine ? { ...g.me, ...mine, name: g.me.name } : g.me };
     });
     if (PHASE_TOAST[phase]) showToast(PHASE_TOAST[phase]);
-    if (phase !== 'chapter2') playSuccess(); // chapter2 dibunyikan oleh ShopOpeningTransition
+    if (phase !== 'bonus') playSuccess(); // bonus dibunyikan oleh ShopOpeningTransition
   }, [showToast, playSuccess]);
 
   const handleShopUpdated = useCallback(({ shop: nextShop, room: nextRoom, last_action: action }) => {
@@ -176,7 +193,7 @@ export default function PlayPage({ session, initialState, onLeave }) {
           />
         )}
 
-        {room.phase === 'chapter2' && (
+        {room.phase === 'bonus' && (
           <Chapter2LiveShop
             me={me}
             room={room}
@@ -189,11 +206,16 @@ export default function PlayPage({ session, initialState, onLeave }) {
             onDismissHint={dismissHint}
             ledger={ledger}
             onActionDone={handleActionDone}
+            onStateChange={applyState}
           />
         )}
 
+        {room.phase === 'chapter3' && (
+          <Chapter3MoneyTracker me={me} room={room} partner={partner} token={session.token} realtime={realtime} onStateChange={applyState} />
+        )}
+
         {room.phase === 'finished' && (
-          <ShopResultScreen variant="victory" me={me} partner={partner} room={room} shop={shop} ending={game.ending} ledger={ledger} />
+          <FinalVictoryScreen me={me} partner={partner} ending={game.ending} token={session.token} />
         )}
       </main>
 

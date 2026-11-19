@@ -7,7 +7,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
- * Uang kas, stok gudang, atau jumlah pelanggan berubah (Chapter 2).
+ * Uang kas, stok gudang, atau jumlah pelanggan berubah (Bab Bonus: Simulasi Kedai Live).
  * Tidak memuat resep maupun harga kulakan, jadi aman dikirim ke kedua peran.
  */
 class ShopStateUpdated implements ShouldBroadcastNow

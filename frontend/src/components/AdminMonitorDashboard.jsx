@@ -5,19 +5,21 @@ import {
 } from 'lucide-react';
 import { api, formatRupiah } from '../lib/api';
 import { createEcho } from '../lib/echo';
+import { AvatarHead } from './game/ShopCharacters';
 import { CARD, TACTILE } from './game/theme';
 
 const PIN_KEY = 'insthink.admin.passcode';
 const POLL_FALLBACK_MS = 5000; // Reverb tidak tersambung
 const POLL_LIVE_MS = 30000; // jaring pengaman saat Reverb tersambung
 const PULSE_DEBOUNCE_MS = 700;
-const DEFAULT_THRESHOLDS = { failed_attempts: 4, idle_seconds: 240 };
+const DEFAULT_THRESHOLDS = { failed_attempts: 4, idle_seconds: 240, chapter3_failed_attempts: 3 };
 const STARTING_MONEY = 50000;
 
 const PHASE = {
   prolog: { label: 'Prolog', cls: 'bg-[#f4a582]' },
   chapter1: { label: 'Bab 1: Blok Kode', cls: 'bg-[#8ec5ff]' },
-  chapter2: { label: 'Bab 2: Kedai Live', cls: 'bg-[#ffd23f]' },
+  bonus: { label: 'Bab Bonus: Kedai', cls: 'bg-[#ffd23f]' },
+  chapter3: { label: 'Bab 3: Money Tracker', cls: 'bg-[#c4b5fd]' },
   finished: { label: 'Selesai', cls: 'bg-[#a5d68f]' },
 };
 
@@ -239,7 +241,7 @@ function Monitor({ pin, initial, onLock, onExit }) {
   const metrics = useMemo(() => ({
     active: teams.filter((t) => t.phase !== 'finished').length,
     early: teams.filter((t) => t.phase === 'prolog' || t.phase === 'chapter1').length,
-    shop: teams.filter((t) => t.phase === 'chapter2').length,
+    shop: teams.filter((t) => t.phase === 'bonus' || t.phase === 'chapter3').length,
     done: teams.filter((t) => t.phase === 'finished').length,
     help: teams.filter((t) => t.needsHelp).length,
   }), [teams]);
@@ -308,7 +310,7 @@ function Monitor({ pin, initial, onLock, onExit }) {
         <section aria-label="Ringkasan kelas" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard icon={Users} label="Total Tim Aktif" value={metrics.active} tone="bg-[#fff1c1]" note={metrics.help ? `${metrics.help} butuh pendampingan` : 'Semua lancar'} alert={metrics.help > 0} />
           <MetricCard icon={Bug} label="Prolog & Bab 1 (Merakit Kode)" value={metrics.early} tone="bg-[#dbeafe]" />
-          <MetricCard icon={Coffee} label="Bab 2 (Simulasi Kedai Live)" value={metrics.shop} tone="bg-[#fde68a]" />
+          <MetricCard icon={Coffee} label="Bab Bonus & Bab 3 (Kedai Live, Money Tracker)" value={metrics.shop} tone="bg-[#fde68a]" />
           <MetricCard icon={ShoppingBag} label="Tim Selesai" value={metrics.done} tone="bg-[#d9f0c9]" />
         </section>
 
@@ -360,7 +362,8 @@ function Monitor({ pin, initial, onLock, onExit }) {
         )}
 
         <p className="mt-6 text-center text-xs text-slate-500">
-          Badge “Butuh Pendampingan” muncul jika tim gagal uji kode ≥ {thresholds.failed_attempts} kali
+          Badge “Butuh Pendampingan” muncul jika tim gagal uji kode ≥ {thresholds.failed_attempts} kali,
+          error ≥ {thresholds.chapter3_failed_attempts ?? DEFAULT_THRESHOLDS.chapter3_failed_attempts} kali di Bab 3: Money Tracker,
           atau tidak ada aktivitas lebih dari {Math.round(thresholds.idle_seconds / 60)} menit pada fase aktif.
         </p>
       </main>
@@ -381,14 +384,16 @@ function progressOf(room) {
   const players = room.players;
   switch (room.phase) {
     case 'prolog':
-      return 5 + players.filter((p) => p.is_prolog_ready).length * 5;
+      return 4 + players.filter((p) => p.is_prolog_ready).length * 3;
     case 'chapter1':
-      return 20 + players.filter((p) => p.is_chapter1_done).length * 10;
-    case 'chapter2': {
+      return 12 + players.filter((p) => p.is_chapter1_done).length * 10;
+    case 'bonus': {
       const span = Math.max(1, room.target_money - STARTING_MONEY);
       const ratio = Math.min(1, Math.max(0, (room.shared_money - STARTING_MONEY) / span));
-      return Math.round(45 + ratio * 54);
+      return Math.round(35 + ratio * 30);
     }
+    case 'chapter3':
+      return 70 + players.filter((p) => p.is_chapter3_done).length * 14;
     case 'finished':
       return 100;
     default:
@@ -400,7 +405,11 @@ function analyzeRoom(room, serverNow, thresholds) {
   const isActive = room.phase !== 'finished';
   const idleSeconds = secondsSince(room.last_activity_at, serverNow);
   const reasons = [];
-  if (isActive && room.failed_attempts >= thresholds.failed_attempts) {
+  const ch3Errors = room.chapter3_failed_attempts ?? 0;
+  const ch3Limit = thresholds.chapter3_failed_attempts ?? DEFAULT_THRESHOLDS.chapter3_failed_attempts;
+  if (room.phase === 'chapter3' && ch3Errors >= ch3Limit) {
+    reasons.push(`Error Bab 3 ${ch3Errors}×`);
+  } else if (isActive && room.failed_attempts >= thresholds.failed_attempts) {
     reasons.push(`Gagal uji kode ${room.failed_attempts}×`);
   }
   if (isActive && idleSeconds != null && idleSeconds > thresholds.idle_seconds) {
@@ -481,7 +490,13 @@ function TeamCard({ team, thresholds, onDelete }) {
           const p = team.players.find((x) => x.role === role);
           return (
             <li key={role} className="flex items-center gap-2 rounded-xl border-2 border-slate-800 bg-white px-2.5 py-1.5">
-              <Icon className="h-4 w-4 shrink-0 text-slate-700" aria-hidden />
+              {p ? (
+                <AvatarHead role={role} gender={p.avatar_skin} size={30} />
+              ) : (
+                <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full border-2 border-dashed border-slate-400">
+                  <Icon className="h-4 w-4 text-slate-400" aria-hidden />
+                </span>
+              )}
               <span className="min-w-0 flex-1">
                 <span className="block text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</span>
                 <span className={`block truncate text-sm font-bold ${p ? 'text-slate-900' : 'italic text-slate-400'}`}>{p ? p.name : 'Belum bergabung'}</span>
@@ -490,6 +505,7 @@ function TeamCard({ team, thresholds, onDelete }) {
                 <span className="flex shrink-0 gap-1">
                   <ReadyChip on={p.is_prolog_ready} label="Prolog" />
                   <ReadyChip on={p.is_chapter1_done} label="Bab 1" />
+                  <ReadyChip on={p.is_chapter3_done} label="Bab 3" />
                 </span>
               )}
             </li>
@@ -514,7 +530,14 @@ function TeamCard({ team, thresholds, onDelete }) {
         <Stat icon={Wallet} label="Kas Bersama" value={formatRupiah(team.shared_money)} sub={`target ${formatRupiah(team.target_money)}`} />
         <Stat icon={ShoppingBag} label="Pelanggan" value={`${team.customers_served} terlayani`} />
         <Stat icon={Clock} label="Durasi" value={clock(team.durationSeconds)} sub={`aktif ${ago(team.idleSeconds)}`} warn={idleWarn} />
-        <Stat icon={Bug} label="Gagal uji kode" value={`${team.failed_attempts}×`} warn={team.failed_attempts >= thresholds.failed_attempts && team.phase !== 'finished'} />
+        <Stat
+          icon={Bug}
+          label="Gagal uji kode"
+          value={`${team.failed_attempts}×`}
+          sub={team.chapter3_failed_attempts ? `${team.chapter3_failed_attempts}× di Bab 3` : null}
+          warn={team.phase !== 'finished' && (team.failed_attempts >= thresholds.failed_attempts
+            || (team.phase === 'chapter3' && (team.chapter3_failed_attempts ?? 0) >= (thresholds.chapter3_failed_attempts ?? DEFAULT_THRESHOLDS.chapter3_failed_attempts)))}
+        />
       </dl>
 
       <button

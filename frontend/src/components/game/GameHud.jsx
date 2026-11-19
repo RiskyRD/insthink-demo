@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Coffee, Copy, Lock, LogOut, Package, Sprout, Wifi, WifiOff } from 'lucide-react';
+import { Check, Copy, Lock, LogOut, Sprout, Wifi, WifiOff } from 'lucide-react';
+import { AvatarHead } from './ShopCharacters';
 import SoundToggle from './SoundToggle';
 import { useGameAudio } from './useGameAudio';
 import { ROLE_LABEL } from '../../lib/api';
@@ -20,8 +21,6 @@ export default function GameHud({ room, me, partner, realtime, onLeave }) {
       timerRef.current = setTimeout(() => setCopied(false), 1800);
     }).catch(() => {});
   };
-
-  const RoleIcon = me.role === 'cashier' ? Coffee : Package;
 
   return (
     <header className="sticky top-0 z-30 border-b-2 border-slate-800 bg-[#fffaf0]/95 backdrop-blur">
@@ -60,9 +59,7 @@ export default function GameHud({ room, me, partner, realtime, onLeave }) {
 
           {/* Lencana peran */}
           <span className={`flex items-center gap-2 rounded-full border-2 border-slate-800 py-1 pl-1 pr-3 text-sm font-bold shadow-[2px_2px_0px_#1e293b] ${me.role === 'cashier' ? 'bg-[#ffe8a3]' : 'bg-[#f3dfc6]'}`}>
-            <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-800 bg-white">
-              <RoleIcon className="h-4 w-4 text-slate-800" aria-hidden />
-            </span>
+            <AvatarHead role={me.role} gender={me.avatar_skin} size={30} />
             <span className="leading-tight">
               {me.name}
               <span className="block text-[10px] font-semibold text-slate-600">{ROLE_LABEL[me.role]}</span>
@@ -74,6 +71,7 @@ export default function GameHud({ room, me, partner, realtime, onLeave }) {
             className={`flex items-center gap-1.5 rounded-full border-2 border-slate-800 px-2.5 py-1 text-xs font-bold ${realtime.isConnected && realtime.partnerOnline ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}`}
             title={realtime.isConnected ? 'Terhubung ke server' : 'Tidak terhubung ke server'}
           >
+            {partner && <AvatarHead role={partner.role} gender={partner.avatar_skin} size={22} className={realtime.partnerOnline ? '' : 'grayscale'} />}
             {realtime.isConnected ? <Wifi className="h-3.5 w-3.5" aria-hidden /> : <WifiOff className="h-3.5 w-3.5 text-rose-500" aria-hidden />}
             {partner ? `${partner.name} ${realtime.partnerOnline ? 'online' : 'offline'}` : 'Menunggu pasangan'}
           </span>
@@ -94,8 +92,8 @@ export default function GameHud({ room, me, partner, realtime, onLeave }) {
   );
 }
 
-const PHASES = ['prolog', 'chapter1', 'chapter2'];
-const PHASE_LABEL = ['Prolog', 'Bab 1', 'Bab 2'];
+const PHASES = ['prolog', 'chapter1', 'bonus', 'chapter3'];
+const PHASE_LABEL = ['Prolog', 'Bab 1: Blok Kode', 'Bab Bonus: Kedai Live', 'Bab 3: Money Tracker'];
 
 const STAR = 'M24 3 L29.6 16.3 L44 17.5 L33 27 L36.4 41 L24 33.5 L11.6 41 L15 27 L4 17.5 L18.4 16.3 Z';
 
@@ -128,7 +126,7 @@ function MissionPosts({ current, total, completed }) {
                   {done ? <Check className="h-3.5 w-3.5" strokeWidth={4} aria-hidden /> : !active ? <Lock className="h-3 w-3" aria-hidden /> : n}
                 </span>
               </div>
-              <span className={`text-[10px] font-bold uppercase ${active ? 'text-emerald-800' : 'text-slate-500'}`}>{PHASE_LABEL[i]}</span>
+              <span className={`max-w-[76px] text-center text-[9px] font-bold uppercase leading-tight sm:max-w-[96px] sm:text-[10px] ${active ? 'text-emerald-800' : 'text-slate-500'}`}>{PHASE_LABEL[i]}</span>
               <span className="sr-only">{done ? 'selesai' : active ? 'sedang dikerjakan' : 'terkunci'}</span>
             </div>
           </li>

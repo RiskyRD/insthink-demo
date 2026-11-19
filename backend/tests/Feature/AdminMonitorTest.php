@@ -71,6 +71,26 @@ class AdminMonitorTest extends TestCase
         Event::assertDispatched(AdminMonitorPulse::class);
     }
 
+    public function test_chapter3_errors_and_avatar_skin_are_reported(): void
+    {
+        $a = $this->postJson('/api/rooms', ['player_name' => 'Ayu', 'role' => 'cashier', 'avatar_skin' => 'female'])->assertCreated();
+        $code = $a->json('room.room_code');
+        $cashier = ['Authorization' => 'Bearer '.$a->json('session_token')];
+        $this->postJson('/api/rooms', ['player_name' => 'Bima', 'room_code' => $code])->assertOk();
+        Room::where('room_code', $code)->update(['phase' => 'chapter3']);
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->postJson("/api/rooms/{$code}/chapter3-attempt", ['code' => 'print(x)', 'output' => 'NameError'], $cashier)->assertCreated();
+        }
+
+        $this->getJson('/api/admin/rooms', self::PIN)
+            ->assertJsonPath('rooms.0.chapter3_failed_attempts', 3)
+            ->assertJsonPath('rooms.0.failed_attempts', 3)
+            ->assertJsonPath('thresholds.chapter3_failed_attempts', 3)
+            ->assertJsonPath('rooms.0.players.0.avatar_skin', 'female')
+            ->assertJsonPath('rooms.0.players.1.avatar_skin', 'male');
+    }
+
     public function test_attempt_is_ignored_outside_chapter1(): void
     {
         [$code, $cashier] = $this->makeTeam();

@@ -1,4 +1,22 @@
 const SESSION_KEY = 'insthink.session';
+const SKIN_KEY = 'insthink.avatar.skin';
+
+/** Pilihan tampilan karakter terakhir (Main Menu & Lobby): 'male' | 'female'. */
+export function loadSkinPref() {
+  try {
+    return localStorage.getItem(SKIN_KEY) === 'female' ? 'female' : 'male';
+  } catch {
+    return 'male';
+  }
+}
+
+export function saveSkinPref(skin) {
+  try {
+    localStorage.setItem(SKIN_KEY, skin === 'female' ? 'female' : 'male');
+  } catch {
+    /* penyimpanan browser tidak tersedia */
+  }
+}
 
 export class ApiError extends Error {
   constructor(message, status, data) {

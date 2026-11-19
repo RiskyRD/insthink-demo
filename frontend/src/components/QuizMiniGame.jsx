@@ -7,7 +7,7 @@ import { useGameAudio } from './game/useGameAudio';
 import { CARD, TACTILE } from './game/theme';
 
 /**
- * Data soal pemanasan. Setiap soal:
+ * Data soal Quiz. Setiap soal:
  * - `code`      : baris kode Python yang ditampilkan (boleh kosong). `___` = slot kosong.
  * - `target`    : keluaran yang diinginkan (opsional, untuk soal tanpa kode).
  * - `options`   : pilihan jawaban. `kind: 'code'` tampil sebagai blok kode, `'output'` sebagai layar keluaran.
@@ -102,7 +102,7 @@ const QUESTIONS = [
   },
 ];
 
-const INTRO_DIALOGUE = 'Sebelum kedai dibuka, kita pemanasan dulu! Ada 4 tantangan kilat. Salah tidak apa-apa, coba terus sampai benar.';
+const INTRO_DIALOGUE = 'Sebelum kedai dibuka, kita Quiz dulu! Ada 4 tantangan kilat. Salah tidak apa-apa, coba terus sampai benar.';
 const WRONG_OPENERS = ['Belum tepat, tidak apa-apa!', 'Ups, hampir!', 'Sedikit lagi!', 'Coba lagi, kamu pasti bisa!'];
 
 /** Bintang per soal: 3 jika langsung benar tanpa hint, berkurang 1 untuk tiap hint/percobaan salah (minimal 1). */
@@ -115,11 +115,11 @@ function formatTime(sec) {
 }
 
 /**
- * Mini-game pemanasan "Tebak & Rakit Cepat Kedai Bali": 4 soal pilihan blok
+ * Quiz "Tebak & Rakit Cepat Kedai Bali": 4 soal pilihan blok
  * (print, int(input()), if-else %, for range) sebelum siswa masuk ke ruangan co-op.
  * Murni sisi klien: tidak memanggil API maupun Pyodide.
  */
-export default function IcebreakingMiniGame({ onBack, onStartGame }) {
+export default function QuizMiniGame({ onBack, onNext, onStartGame }) {
   const { playClick, playSuccess, playError } = useGameAudio();
   const [index, setIndex] = useState(0);
   const [results, setResults] = useState([]); // { wrong, hints } per soal yang sudah selesai
@@ -217,7 +217,7 @@ export default function IcebreakingMiniGame({ onBack, onStartGame }) {
           </button>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-black uppercase tracking-wider text-[#c4562f]">Langkah 2</p>
-            <h1 className="truncate text-lg font-black text-slate-900">Tebak &amp; Rakit Cepat</h1>
+            <h1 className="truncate text-lg font-black text-slate-900">Quiz Pemanasan Python</h1>
           </div>
           <span className="flex items-center gap-1 rounded-full border-2 border-slate-800 bg-white px-2.5 py-1 font-mono text-xs font-bold text-slate-800" aria-label={`Waktu ${formatTime(seconds)}`}>
             <Timer className="h-3.5 w-3.5" aria-hidden /> {formatTime(seconds)}
@@ -229,7 +229,7 @@ export default function IcebreakingMiniGame({ onBack, onStartGame }) {
 
       <main className="mx-auto max-w-5xl px-4 py-6">
         {finished ? (
-          <FinishScreen results={results} seconds={seconds} onStartGame={press(onStartGame)} onRestart={restart} onBack={press(onBack)} />
+          <FinishScreen results={results} seconds={seconds} onNext={press(onNext)} onStartGame={press(onStartGame)} onRestart={restart} onBack={press(onBack)} />
         ) : (
           <article key={q.id} className={`${CARD} prolog-slide-in grid gap-6 p-4 sm:p-6 md:grid-cols-[260px_1fr]`}>
             <div className="flex flex-col items-center md:items-start">
@@ -488,13 +488,13 @@ function StarRow({ count, max = 3, size = 'h-8 w-8' }) {
 
 const CONFETTI_COLORS = ['#ffd23f', '#c4562f', '#4f8f3a', '#a5d68f', '#f4a582', '#e9b949'];
 
-function FinishScreen({ results, seconds, onStartGame, onRestart, onBack }) {
+function FinishScreen({ results, seconds, onNext, onStartGame, onRestart, onBack }) {
   const total = results.reduce((sum, r) => sum + starsFor(r), 0);
   const max = QUESTIONS.length * 3;
   const rating = total >= max - 1 ? 3 : total >= max * 0.6 ? 2 : 1;
   const message = {
     3: 'Sempurna! Otakmu sudah panas dan siap meracik kode. Ayo buka kedai bersama partnermu!',
-    2: 'Bagus sekali! Pemanasan beres. Sisanya kita latih langsung di kedai, ya!',
+    2: 'Bagus sekali! Quiz beres. Sisanya kita latih langsung di kedai, ya!',
     1: 'Kerja bagus, kamu sudah mencoba sampai benar! Itulah semangat programmer. Ayo lanjut ke kedai!',
   }[rating];
   const confetti = useMemo(
@@ -520,7 +520,7 @@ function FinishScreen({ results, seconds, onStartGame, onRestart, onBack }) {
         ))}
       </div>
 
-      <p className="text-xs font-black uppercase tracking-wider text-[#c4562f]">Pemanasan selesai</p>
+      <p className="text-xs font-black uppercase tracking-wider text-[#c4562f]">Quiz selesai</p>
       <h2 id="ice-finish-title" className="mt-1 text-2xl font-black text-slate-900 sm:text-3xl">Kedai Siap Dibuka!</h2>
 
       <div className="relative mt-4 flex justify-center">
@@ -548,14 +548,17 @@ function FinishScreen({ results, seconds, onStartGame, onRestart, onBack }) {
       <div className="relative mt-6 flex flex-col items-center gap-3">
         <button
           type="button"
-          onClick={onStartGame}
+          onClick={onNext}
           className={`${TACTILE} prolog-cta-pulse flex w-full max-w-md items-center justify-center gap-2 rounded-2xl bg-[#ffd23f] px-5 py-3.5 text-base font-black text-slate-900 sm:text-lg`}
         >
-          <Users className="h-6 w-6 shrink-0" aria-hidden /> Buka Kedai Bersama Partner (Masuk Co-op)
+          <ChevronRight className="h-6 w-6 shrink-0" aria-hidden /> Lanjut ke Langkah 3: Praktik Money Tracker
         </button>
         <div className="flex flex-wrap justify-center gap-3">
+          <button type="button" onClick={onStartGame} className={`${TACTILE} flex items-center gap-1.5 rounded-xl bg-[#7c5cc4] px-4 py-2 text-sm font-bold text-white`}>
+            <Users className="h-4 w-4" aria-hidden /> Bonus: Buka Kedai Bersama Partner (Co-op)
+          </button>
           <button type="button" onClick={onRestart} className={`${TACTILE} flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-sm font-bold text-slate-900`}>
-            <RotateCcw className="h-4 w-4" aria-hidden /> Ulangi Pemanasan
+            <RotateCcw className="h-4 w-4" aria-hidden /> Ulangi Quiz
           </button>
           <button type="button" onClick={onBack} className={`${TACTILE} flex items-center gap-1.5 rounded-xl bg-[#fff7e0] px-4 py-2 text-sm font-bold text-slate-900`}>
             <ArrowLeft className="h-4 w-4" aria-hidden /> Menu Utama

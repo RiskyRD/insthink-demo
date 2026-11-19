@@ -3,7 +3,7 @@ import {
   BellRing, Check, ChevronLeft, ChevronRight, Coins, Hourglass, Loader2, Receipt, Rocket, Timer, UserCheck, WifiOff,
 } from 'lucide-react';
 import BuRatnaCharacter from './BuRatnaCharacter';
-import { CashierCharacter, WarehouseCharacter } from './ShopCharacters';
+import { RoleCharacter } from './ShopCharacters';
 import { useGameAudio } from './useGameAudio';
 import { CARD, TACTILE, WOOD_BG } from './theme';
 import { api, formatRupiah } from '../../lib/api';
@@ -286,6 +286,8 @@ export default function PrologBriefing({ me, room, partner, shop, catalog, token
               speaking={current.speaker === 'self' && role === 'cashier'}
               meName={me.name}
               partnerName={partner?.name}
+              meSkin={me.avatar_skin}
+              partnerSkin={partner?.avatar_skin}
               speakerMood={speakerMood}
               partnerMood={partnerMood}
               ratnaSpeaks={current.speaker === 'ratna'}
@@ -301,6 +303,8 @@ export default function PrologBriefing({ me, room, partner, shop, catalog, token
               speaking={current.speaker === 'self' && role === 'warehouse'}
               meName={me.name}
               partnerName={partner?.name}
+              meSkin={me.avatar_skin}
+              partnerSkin={partner?.avatar_skin}
               speakerMood={speakerMood}
               partnerMood={partnerMood}
               ratnaSpeaks={current.speaker === 'ratna'}
@@ -382,15 +386,16 @@ function SpeechBubble({ label, shown, fullText, typing, footer, onClick }) {
   );
 }
 
-function RoleFigure({ variant, isMe, speaking, meName, partnerName, speakerMood, partnerMood, ratnaSpeaks }) {
-  const Figure = variant === 'cashier' ? CashierCharacter : WarehouseCharacter;
+function RoleFigure({ variant, isMe, speaking, meName, partnerName, meSkin, partnerSkin, speakerMood, partnerMood, ratnaSpeaks }) {
   const roleName = variant === 'cashier' ? 'Kasir' : 'Gudang';
   let mood = isMe ? 'idle' : partnerMood;
   if (speaking) mood = speakerMood;
   const caption = isMe ? `${meName} (Kamu)` : partnerName ? `${partnerName} · ${roleName}` : `Menunggu ${roleName}`;
 
   return (
-    <Figure
+    <RoleCharacter
+      role={variant}
+      gender={isMe ? meSkin : partnerSkin}
       mood={mood}
       size={speaking ? 170 : ratnaSpeaks ? 95 : 125}
       caption={caption}

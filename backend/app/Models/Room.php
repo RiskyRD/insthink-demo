@@ -14,7 +14,8 @@ class Room extends Model
 
     public const PHASE_PROLOG = 'prolog';
     public const PHASE_CHAPTER1 = 'chapter1';
-    public const PHASE_CHAPTER2 = 'chapter2';
+    public const PHASE_BONUS = 'bonus';
+    public const PHASE_CHAPTER3 = 'chapter3';
     public const PHASE_FINISHED = 'finished';
 
     protected $fillable = [
@@ -132,8 +133,10 @@ class Room extends Model
             'players' => $this->players->map(fn (RoomPlayer $p) => [
                 'name' => $p->player_name,
                 'role' => $p->role,
+                'avatar_skin' => $p->avatar_skin,
                 'is_prolog_ready' => $p->is_prolog_ready,
                 'is_chapter1_done' => $p->is_chapter1_done,
+                'is_chapter3_done' => $p->is_chapter3_done,
             ])->values()->all(),
         ];
     }

@@ -14,7 +14,7 @@ import { CARD, TACTILE, WOOD_BG } from './game/theme';
  * operator, if-else, for). Semua simulasi dihitung di klien tanpa server.
  *
  * @param {() => void} onBack  kembali ke Main Menu
- * @param {() => void} onNext  lanjut ke Icebreaking
+ * @param {() => void} onNext  lanjut ke Quiz
  * @param {number} initialStep  kartu yang dibuka pertama (0–5)
  */
 export default function PythonMateriModule({ onBack, onNext, initialStep = 0 }) {
@@ -159,7 +159,7 @@ export default function PythonMateriModule({ onBack, onNext, initialStep = 0 }) 
                   onClick={() => { audio.playSuccess(); onNext(); }}
                   className={`${TACTILE} prolog-cta-pulse flex items-center gap-2 rounded-xl bg-[#ffd23f] px-5 py-2.5 font-black text-slate-900`}
                 >
-                  <Zap className="h-5 w-5" aria-hidden /> Lanjut ke Icebreaking
+                  <Zap className="h-5 w-5" aria-hidden /> Lanjut ke Quiz
                 </button>
               </div>
             ) : (

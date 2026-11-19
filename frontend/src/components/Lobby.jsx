@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Coffee, Loader2, LogIn, Package, PlusCircle, Sprout } from 'lucide-react';
-import { api, ROLE_LABEL } from '../lib/api';
+import { api, loadSkinPref, ROLE_LABEL, saveSkinPref } from '../lib/api';
+import { RoleCharacter } from './game/ShopCharacters';
 
 const ROLE_INFO = {
   cashier: { icon: Coffee, desc: 'Melayani pelanggan, meracik menu, dan memastikan kembalian tidak salah hitung.' },
@@ -13,6 +14,7 @@ export default function Lobby({ onEnter, onBack }) {
   const [name, setName] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [role, setRole] = useState('cashier');
+  const [skin, setSkin] = useState(loadSkinPref);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -21,8 +23,9 @@ export default function Lobby({ onEnter, onBack }) {
     setLoading(true);
     setError(null);
     try {
-      const body = { player_name: name.trim(), role: mode === 'create' ? role : role || undefined };
+      const body = { player_name: name.trim(), role: mode === 'create' ? role : role || undefined, avatar_skin: skin };
       if (mode === 'join') body.room_code = roomCode.trim().toUpperCase();
+      saveSkinPref(skin);
       const state = await api('/rooms', { method: 'POST', body });
       onEnter(state);
     } catch (err) {
@@ -73,6 +76,26 @@ export default function Lobby({ onEnter, onBack }) {
               className="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono uppercase tracking-widest focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
           </label>
         )}
+
+        <fieldset className="mb-4">
+          <legend className="mb-2 text-sm font-medium text-slate-700">Pilih Karaktermu</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {[['male', 'Cowok', 'Udeng'], ['female', 'Cewek', 'Kebaya']].map(([key, label, desc]) => (
+              <button key={key} type="button" onClick={() => setSkin(key)} aria-pressed={skin === key}
+                className={`flex flex-col items-center rounded-xl border-2 px-2 pb-2 pt-1 transition-all active:scale-95 ${skin === key ? 'border-emerald-500 bg-emerald-50 shadow-[0_0_0_3px_#a7f3d0]' : 'border-slate-200 hover:border-slate-300'}`}>
+                <RoleCharacter
+                  key={`${key}-${role || 'cashier'}-${skin === key}`}
+                  role={role || 'cashier'}
+                  gender={key}
+                  mood={skin === key ? 'happy' : 'idle'}
+                  size={92}
+                  caption={`${label} (${desc})`}
+                />
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-slate-500">Pratinjau mengikuti peran yang dipilih. Pasanganmu akan melihat karakter ini.</p>
+        </fieldset>
 
         <fieldset className="mb-5">
           <legend className="mb-2 text-sm font-medium text-slate-700">

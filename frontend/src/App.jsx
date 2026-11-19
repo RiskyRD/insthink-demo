@@ -3,9 +3,10 @@ import AdminMonitorDashboard from './components/AdminMonitorDashboard';
 import { Loader2 } from 'lucide-react';
 import Lobby from './components/Lobby';
 import MainMenu from './components/MainMenu';
+import MoneyTrackerPractice from './components/MoneyTrackerPractice';
 import PlayPage from './components/PlayPage';
 import PythonMateriModule from './components/PythonMateriModule';
-import IcebreakingMiniGame from './components/IcebreakingMiniGame';
+import QuizMiniGame from './components/QuizMiniGame';
 import { api, clearSession, loadSession, saveSession } from './lib/api';
 
 export default function App() {
@@ -13,7 +14,7 @@ export default function App() {
   const [state, setState] = useState(null);
   const [restoring, setRestoring] = useState(Boolean(session));
   const [notice, setNotice] = useState(null);
-  // Tahap klien: 'menu' | 'materi' | 'icebreaking' | 'game' (lobby → ruangan co-op).
+  // Tahap klien: 'menu' | 'materi' | 'quiz' | 'tracker' (praktik Money Tracker) | 'game' (bonus: lobby → ruangan co-op).
   const [stage, setStage] = useState('menu');
   // Mode Fasilitator di rute /admin, terpisah dari sesi pemain.
   const [adminMode, setAdminMode] = useState(() => isAdminPath());
@@ -94,8 +95,9 @@ export default function App() {
         </div>
       )}
       {stage === 'menu' && <MainMenu onSelect={setStage} onOpenAdmin={openAdmin} />}
-      {stage === 'materi' && <PythonMateriModule onBack={() => setStage('menu')} onNext={() => setStage('icebreaking')} />}
-      {stage === 'icebreaking' && <IcebreakingMiniGame onBack={() => setStage('menu')} onStartGame={() => setStage('game')} />}
+      {stage === 'materi' && <PythonMateriModule onBack={() => setStage('menu')} onNext={() => setStage('quiz')} />}
+      {stage === 'quiz' && <QuizMiniGame onBack={() => setStage('menu')} onNext={() => setStage('tracker')} onStartGame={() => setStage('game')} />}
+      {stage === 'tracker' && <MoneyTrackerPractice onBack={() => setStage('menu')} onPlayBonus={() => setStage('game')} />}
       {stage === 'game' && <Lobby onEnter={handleEnter} onBack={() => setStage('menu')} />}
     </>
   );

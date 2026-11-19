@@ -3,7 +3,7 @@
 namespace App\Game;
 
 /**
- * Data tetap "Kedai Kopi & Camilan Desa" (Chapter 2).
+ * Data tetap "Kedai Kopi & Camilan Desa" (Bab Bonus: Simulasi Kedai Live).
  *
  * Harga dan resep adalah sumber kebenaran server: klien hanya mengirim
  * kunci menu / kunci bahan, tidak pernah mengirim harga.

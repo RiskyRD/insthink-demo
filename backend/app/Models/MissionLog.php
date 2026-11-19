@@ -11,7 +11,7 @@ class MissionLog extends Model
 
     protected $fillable = [
         'room_id', 'room_player_id', 'mission_number', 'submitted_code', 'terminal_output',
-        'is_passed', 'error_category', 'duration_seconds',
+        'is_passed', 'error_category', 'attempt_count', 'duration_seconds',
     ];
 
     protected function casts(): array
@@ -19,6 +19,7 @@ class MissionLog extends Model
         return [
             'mission_number' => 'integer',
             'is_passed' => 'boolean',
+            'attempt_count' => 'integer',
             'duration_seconds' => 'integer',
             'created_at' => 'datetime',
         ];

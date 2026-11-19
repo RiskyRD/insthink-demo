@@ -26,8 +26,10 @@ class RoleProjector
             'me' => [
                 'name' => $player->player_name,
                 'role' => $player->role,
+                'avatar_skin' => $player->avatar_skin,
                 'is_prolog_ready' => $player->is_prolog_ready,
                 'is_chapter1_done' => $player->is_chapter1_done,
+                'is_chapter3_done' => $player->is_chapter3_done,
             ],
             'room' => $room->publicSummary(),
             'shop' => $room->shopState(),
@@ -49,13 +51,14 @@ class RoleProjector
     private function ending(Room $room): array
     {
         return [
-            'message' => 'Selamat! Kedai Kopi & Camilan Desa mencapai target pendapatan. '
+            'message' => 'Selamat! Kedai Kopi & Camilan Desa sudah punya Money Tracker sendiri. '
                 .'Kerja sama Kasir dan Stok Gudang membuat usaha desa semakin maju.',
             'final_money' => $room->shared_money,
             'customers_served' => $room->customers_served,
             'total_duration_seconds' => $room->started_at && $room->completed_at
                 ? (int) $room->started_at->diffInSeconds($room->completed_at)
                 : null,
+            'score' => ScoreCalculator::forRoom($room),
         ];
     }
 }

@@ -7,7 +7,7 @@ import BuRatnaCharacter from './BuRatnaCharacter';
 import HintBanner from './HintBanner';
 import SendHintButton from './SendHintButton';
 import VillagerAvatar, { VILLAGERS } from './VillagerAvatar';
-import { CashierCharacter, WarehouseCharacter } from './ShopCharacters';
+import { RoleCharacter } from './ShopCharacters';
 import { useGameAudio } from './useGameAudio';
 import { CARD, TACTILE, WOOD_BG } from './theme';
 import { BlockBank, PointerHint, ProgramArea, PythonPreview } from './chapter1/BlockParts';
@@ -131,8 +131,8 @@ function PanelTitle({ icon: Icon, children, aside = null }) {
   );
 }
 
-const MyCharacter = ({ role, ...props }) => (role === 'cashier' ? <CashierCharacter {...props} /> : <WarehouseCharacter {...props} />);
-const PartnerCharacter = ({ role, ...props }) => (role === 'cashier' ? <WarehouseCharacter {...props} /> : <CashierCharacter {...props} />);
+const MyCharacter = ({ role, ...props }) => <RoleCharacter role={role} {...props} />;
+const PartnerCharacter = ({ role, ...props }) => <RoleCharacter role={role === 'cashier' ? 'warehouse' : 'cashier'} {...props} />;
 
 /**
  * Chapter 1: merakit sistem dengan blok kode bergaya Scratch.
@@ -457,8 +457,8 @@ function BuildStage({
           <BuRatnaCharacter mood={mood} size={95} dialogue={feedback?.text ?? defaultDialogue} title="Pemilik Kedai" replayKey={feedback?.text} />
         </div>
         <div className="flex items-end gap-2">
-          <MyCharacter role={role} mood={testing ? 'thinking' : allPassed ? 'happy' : feedback?.mood === 'shocked' ? 'shocked' : 'idle'} size={100} caption={`${me.name} (Kamu)`} />
-          <PartnerCharacter role={role} mood={partnerMood(partner, realtime)} size={85} caption={partner?.name ?? 'Partner'} dim />
+          <MyCharacter role={role} gender={me.avatar_skin} mood={testing ? 'thinking' : allPassed ? 'happy' : feedback?.mood === 'shocked' ? 'shocked' : 'idle'} size={100} caption={`${me.name} (Kamu)`} />
+          <PartnerCharacter role={role} gender={partner?.avatar_skin} mood={partnerMood(partner, realtime)} size={85} caption={partner?.name ?? 'Partner'} dim />
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto">
           <button
@@ -721,8 +721,8 @@ function WaitingStage({ me, partner, realtime, boardProps, nudge, hints, onDismi
             dialogue={`Sistemmu sudah aktif! Sekarang tunggu ${partnerName}. Bantu dia dengan mengirim data dari papanmu, ya.`}
           />
           <div className="flex items-end gap-3">
-            <MyCharacter role={me.role} mood="happy" size={120} caption={`${me.name} · Selesai`} />
-            <PartnerCharacter role={me.role} mood={partnerMood(partner, realtime)} size={120} caption={partner?.name ?? 'Partner'} />
+            <MyCharacter role={me.role} gender={me.avatar_skin} mood="happy" size={120} caption={`${me.name} · Selesai`} />
+            <PartnerCharacter role={me.role} gender={partner?.avatar_skin} mood={partnerMood(partner, realtime)} size={120} caption={partner?.name ?? 'Partner'} />
           </div>
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
@@ -762,7 +762,7 @@ function WaitingStage({ me, partner, realtime, boardProps, nudge, hints, onDismi
 }
 
 // ----------------------------------------------------------------------
-// Transisi "Toko Resmi Dibuka!" (dipasang di PlayPage saat chapter1 → chapter2)
+// Transisi "Toko Resmi Dibuka!" (dipasang di PlayPage saat chapter1 → bonus)
 // ----------------------------------------------------------------------
 export function ShopOpeningTransition({ open, me, partner, onClose }) {
   const { playSuccess, playCashRegister } = useGameAudio();
@@ -777,6 +777,7 @@ export function ShopOpeningTransition({ open, me, partner, onClose }) {
   if (!open) return null;
 
   const names = { [me.role]: `${me.name}`, ...(partner ? { [partner.role]: partner.name } : {}) };
+  const skins = { [me.role]: me.avatar_skin, ...(partner ? { [partner.role]: partner.avatar_skin } : {}) };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-slate-900/70 p-4" role="dialog" aria-modal="true" aria-labelledby="shop-open-title">
@@ -821,9 +822,9 @@ export function ShopOpeningTransition({ open, me, partner, onClose }) {
           </p>
 
           <div className="mt-4 flex items-end justify-center gap-2">
-            <CashierCharacter mood="happy" size={110} caption={names.cashier ?? 'Kasir'} />
+            <RoleCharacter role="cashier" gender={skins.cashier} mood="happy" size={110} caption={names.cashier ?? 'Kasir'} />
             <BuRatnaCharacter mood="happy" size={120} />
-            <WarehouseCharacter mood="happy" size={110} caption={names.warehouse ?? 'Penjaga Gudang'} />
+            <RoleCharacter role="warehouse" gender={skins.warehouse} mood="happy" size={110} caption={names.warehouse ?? 'Penjaga Gudang'} />
           </div>
 
           <button
@@ -831,7 +832,7 @@ export function ShopOpeningTransition({ open, me, partner, onClose }) {
             onClick={onClose}
             className={`${TACTILE} prolog-cta-pulse mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-lg font-black text-white hover:bg-emerald-600`}
           >
-            <Store className="h-6 w-6" aria-hidden /> Masuk ke Chapter 2
+            <Store className="h-6 w-6" aria-hidden /> Masuk ke Bab Bonus
           </button>
         </div>
       </div>

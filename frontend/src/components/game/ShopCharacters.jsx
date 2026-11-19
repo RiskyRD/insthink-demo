@@ -39,6 +39,12 @@ const VARIANTS = {
   },
 };
 
+/** Varian cewek Bali: kebaya + kamen, rambut pusung (Kasir) atau kepang (Gudang) berhias jepun. */
+const FEMALE = {
+  cashier: { kebaya: '#fdfaf2', lace: '#f2d9a6', kemben: KUNYIT, kamen: '#8c3b2a', hair: 'pusung' },
+  warehouse: { kebaya: '#f5e6c8', lace: '#e9b949', kemben: LEAF, kamen: TERRA, hair: 'kepang' },
+};
+
 /** Pose lengan: [lengan kiri, lengan kanan], masing-masing { d: path, hand: [x, y] }. */
 const ARMS = {
   side: [
@@ -70,14 +76,16 @@ const ARMS = {
 /**
  * Karakter kartun kedai (viewBox 160×210) dengan ekspresi otomatis.
  * @param {'cashier'|'warehouse'} variant
+ * @param {'male'|'female'} gender  male = udeng & saput, female = kebaya, kamen & sanggul/kepang
  * @param {'offline'|'idle'|'talking'|'thinking'|'happy'|'shocked'} mood
  * @param {string} caption  teks lencana nama (default: nama peran)
  * @param {boolean} dim     tampil lebih redup (bukan pembicara)
  */
-export function ShopCharacter({ variant = 'cashier', mood = 'idle', size = 150, caption, dim = false, className = '' }) {
+export function ShopCharacter({ variant = 'cashier', gender = 'male', mood = 'idle', size = 150, caption, dim = false, headOnly = false, className = '' }) {
   const v = VARIANTS[variant] ?? VARIANTS.cashier;
+  const f = gender === 'female' ? FEMALE[variant] ?? FEMALE.cashier : null;
   const face = mood === 'offline' ? 'idle' : mood;
-  const bodyAnim = { idle: 'shop-breathe', talking: 'shop-breathe', thinking: 'shop-breathe', happy: 'shop-hop', shocked: 'shop-shake' }[mood] ?? '';
+  const bodyAnim = headOnly ? '' : { idle: 'shop-breathe', talking: 'shop-breathe', thinking: 'shop-breathe', happy: 'shop-hop', shocked: 'shop-shake' }[mood] ?? '';
   const pose = {
     idle: variant === 'warehouse' ? 'hold' : 'side',
     talking: 'gesture',
@@ -87,12 +95,12 @@ export function ShopCharacter({ variant = 'cashier', mood = 'idle', size = 150, 
   }[face] ?? 'side';
 
   return (
-    <figure className={`m-0 shrink-0 transition-opacity duration-300 ${dim ? 'opacity-75' : ''} ${className}`} style={{ width: size }}>
+    <figure className={`m-0 shrink-0 transition-opacity duration-300 ${dim ? 'opacity-75' : ''} ${className}`} style={{ width: size }} aria-hidden={headOnly || undefined}>
       <svg
-        viewBox="0 0 160 210"
+        viewBox={headOnly ? '34 12 92 92' : '0 0 160 210'}
         className={`h-auto w-full overflow-visible transition-[filter] duration-500 ${mood === 'offline' ? 'opacity-70 grayscale' : ''}`}
         role="img"
-        aria-label={`${v.name} ${MOOD_LABEL[mood] ?? ''}`}
+        aria-label={`${v.name}${f ? ' (cewek)' : ''} ${MOOD_LABEL[mood] ?? ''}`}
         stroke={INK}
         strokeWidth="3"
         strokeLinejoin="round"
@@ -101,24 +109,40 @@ export function ShopCharacter({ variant = 'cashier', mood = 'idle', size = 150, 
         <ellipse cx="80" cy="203" rx="48" ry="6" fill="#000" opacity="0.15" stroke="none" />
 
         <g className={bodyAnim}>
-          {/* Kaki & sepatu */}
-          <rect x="58" y="176" width="16" height="22" rx="4" fill={v.pants} />
-          <rect x="86" y="176" width="16" height="22" rx="4" fill={v.pants} />
-          <ellipse cx="64" cy="199" rx="12" ry="5" fill="#3b2416" />
-          <ellipse cx="96" cy="199" rx="12" ry="5" fill="#3b2416" />
+          {f ? (
+            <>
+              {/* Kamen (kain lilit) & sandal */}
+              <ellipse cx="66" cy="201" rx="10" ry="4" fill="#3b2416" />
+              <ellipse cx="94" cy="201" rx="10" ry="4" fill="#3b2416" />
+              <Kamen fill={f.kamen} endek={variant === 'warehouse'} />
+              {/* Kebaya: lebih pendek, menjuntai di atas kamen */}
+              <path d="M44 108 Q80 96 116 108 L121 164 Q80 172 39 164 Z" fill={f.kebaya} />
+              <KebayaDetail {...f} />
+              {variant === 'cashier' ? <CashierApron /> : <Senteng />}
+            </>
+          ) : (
+            <>
+              {/* Kaki & sepatu */}
+              <rect x="58" y="176" width="16" height="22" rx="4" fill={v.pants} />
+              <rect x="86" y="176" width="16" height="22" rx="4" fill={v.pants} />
+              <ellipse cx="64" cy="199" rx="12" ry="5" fill="#3b2416" />
+              <ellipse cx="96" cy="199" rx="12" ry="5" fill="#3b2416" />
 
-          {/* Badan */}
-          <path d="M44 108 Q80 96 116 108 L124 182 Q80 190 36 182 Z" fill={v.shirt} />
-          {variant === 'cashier' ? <CashierOutfit /> : <WarehouseOutfit />}
+              {/* Badan */}
+              <path d="M44 108 Q80 96 116 108 L124 182 Q80 190 36 182 Z" fill={v.shirt} />
+              {variant === 'cashier' ? <CashierOutfit /> : <WarehouseOutfit />}
+            </>
+          )}
 
           {/* Leher & kepala */}
           <rect x="72" y="88" width="16" height="14" rx="4" fill={v.skin} />
+          {f?.hair === 'pusung' && <Pusung />}
           <circle cx="50" cy="66" r="6" fill={v.skin} />
           <circle cx="110" cy="66" r="6" fill={v.skin} />
           <circle cx="80" cy="64" r="30" fill={v.skin} />
           <ellipse cx="62" cy="77" rx="5" ry="3" fill={TONGUE} stroke="none" opacity="0.5" />
           <ellipse cx="98" cy="77" rx="5" ry="3" fill={TONGUE} stroke="none" opacity="0.5" />
-          <Udeng {...v.udeng} />
+          {f ? <FemaleHair style={f.hair} /> : <Udeng {...v.udeng} />}
 
           <Brows mood={face} />
           <Eyes mood={face} />
@@ -129,22 +153,42 @@ export function ShopCharacter({ variant = 'cashier', mood = 'idle', size = 150, 
           {variant === 'warehouse' && <IngredientCrate />}
           {pose === 'hold' && <Clipboard />}
 
-          <Arms pose={pose} skin={v.skin} sleeve={v.shirt} />
+          {f?.hair === 'kepang' && <Kepang />}
+          <Arms pose={pose} skin={v.skin} sleeve={f ? f.kebaya : v.shirt} cuff={f?.lace} />
         </g>
 
-        <Effects mood={face} />
+        {!headOnly && <Effects mood={face} />}
       </svg>
+      {!headOnly && (
       <figcaption
         className={`mx-auto -mt-1 w-fit whitespace-nowrap rounded-full border-2 border-slate-800 px-3 py-0.5 text-xs font-bold text-slate-900 shadow-[2px_2px_0px_#1e293b] ${v.badge}`}
       >
         {caption ?? v.name}
       </figcaption>
+      )}
     </figure>
   );
 }
 
 export const CashierCharacter = (props) => <ShopCharacter variant="cashier" {...props} />;
 export const WarehouseCharacter = (props) => <ShopCharacter variant="warehouse" {...props} />;
+
+/** Potret kepala bulat (HUD, kartu kecil). */
+export function AvatarHead({ role, gender, size = 28, className = '' }) {
+  return (
+    <span
+      className={`inline-block shrink-0 overflow-hidden rounded-full border-2 border-slate-800 bg-[#fff7e0] ${className}`}
+      style={{ width: size, height: size }}
+    >
+      <ShopCharacter variant={role === 'warehouse' ? 'warehouse' : 'cashier'} gender={gender === 'female' ? 'female' : 'male'} headOnly size="100%" />
+    </span>
+  );
+}
+
+/** Karakter berdasarkan peran & skin pemain (`avatar_skin` dari server). */
+export const RoleCharacter = ({ role, gender, ...props }) => (
+  <ShopCharacter variant={role === 'warehouse' ? 'warehouse' : 'cashier'} gender={gender === 'female' ? 'female' : 'male'} {...props} />
+);
 
 // ----------------------------------------------------------------------
 // Bagian tubuh
@@ -186,7 +230,15 @@ function CashierOutfit() {
   return (
     <>
       <ShirtCollar fill="#fdfaf2" />
-      {/* Celemek kedai kopi hijau daun beraksen Endek */}
+      <CashierApron />
+    </>
+  );
+}
+
+/** Celemek kedai kopi hijau daun beraksen Endek (dipakai Kasir cowok & cewek). */
+function CashierApron() {
+  return (
+    <>
       <path d="M58 120 L66 106" fill="none" stroke="#2f6b2a" strokeWidth="4" />
       <path d="M102 120 L94 106" fill="none" stroke="#2f6b2a" strokeWidth="4" />
       <path d="M54 120 L106 120 L114 184 Q80 190 46 184 Z" fill={LEAF} />
@@ -216,6 +268,92 @@ function WarehouseOutfit() {
       <path d="M46 144 L36 164 L48 160 Z" fill={TERRA} />
       <path d="M50 146 L46 168 L56 162 Z" fill={KUNYIT} />
     </>
+  );
+}
+
+// ---------- Varian cewek ----------
+
+/** Kamen: kain lilit sampai mata kaki dengan lipatan miring dan tepi emas. */
+function Kamen({ fill, endek }) {
+  return (
+    <g>
+      <path d="M42 150 Q80 158 118 150 L116 200 Q80 205 44 200 Z" fill={fill} />
+      {endek && <EndekStrip x={45} y={180} w={70} h={10} />}
+      <path d="M94 156 L84 202" fill="none" strokeWidth="2.5" />
+      <path d="M45 196 Q80 201 115 196" fill="none" stroke={GOLD} strokeWidth="3" />
+    </g>
+  );
+}
+
+/** Kerah V kebaya dengan kemben di dalamnya, renda di tepi, dan bros emas. */
+function KebayaDetail({ kebaya, lace, kemben }) {
+  return (
+    <g>
+      <path d="M68 102 L80 136 L92 102 Z" fill={kemben} strokeWidth="2.5" />
+      <path d="M66 101 L80 138 L94 101" fill="none" stroke={lace} strokeWidth="4" />
+      <path d="M66 101 L80 138 L94 101" fill="none" strokeWidth="1.5" />
+      {/* Renda bergelombang di bawah kebaya */}
+      <path d="M40 162 q5 6 10 0 q5 6 10 0 q5 6 10 0 q5 6 10 0 q5 6 10 0 q5 6 10 0 q5 6 10 0 q5 6 10 0" fill={kebaya} stroke={lace} strokeWidth="2.5" />
+      <circle cx="80" cy="128" r="3.5" fill={GOLD} strokeWidth="2" />
+    </g>
+  );
+}
+
+/** Selendang senteng kunyit yang diikat di pinggang, ujungnya menjuntai. */
+function Senteng() {
+  return (
+    <g>
+      <path d="M40 146 Q80 156 120 146 L121 158 Q80 168 39 158 Z" fill={KUNYIT} />
+      <path d="M42 152 Q80 162 119 152" fill="none" stroke={TERRA} strokeWidth="2" strokeDasharray="5 4" />
+      <path d="M108 156 L118 188 L110 186 L104 160 Z" fill={KUNYIT} />
+      <path d="M104 158 L100 182 L94 178 Z" fill={GOLD} />
+    </g>
+  );
+}
+
+/** Sanggul pusung di belakang-atas kepala dengan tusuk konde emas (digambar sebelum kepala). */
+function Pusung() {
+  return (
+    <g>
+      <ellipse cx="80" cy="30" rx="21" ry="13" fill={HAIR} />
+      <path d="M66 28 Q80 20 94 28" fill="none" stroke="#4a2e20" strokeWidth="2" />
+      <path d="M58 22 L102 34" stroke={GOLD} strokeWidth="3" />
+      <circle cx="58" cy="22" r="3" fill={GOLD} strokeWidth="2" />
+    </g>
+  );
+}
+
+/** Rambut berbelah tengah dengan poni lembut, subeng emas, dan bunga jepun. */
+function FemaleHair({ style }) {
+  return (
+    <g>
+      <path d="M49 72 Q44 32 80 32 Q116 32 111 72 Q108 56 100 48 Q90 52 80 42 Q70 52 60 48 Q52 56 49 72 Z" fill={HAIR} />
+      <path d="M80 34 L80 42" fill="none" stroke="#4a2e20" strokeWidth="2" />
+      {/* Subeng (anting bulat) */}
+      <circle cx="50" cy="74" r="3.5" fill={GOLD} strokeWidth="2" />
+      <circle cx="110" cy="74" r="3.5" fill={GOLD} strokeWidth="2" />
+      {style === 'pusung' ? (
+        <>
+          <Jepun cx={101} cy={30} scale={0.7} />
+          <Jepun cx={110} cy={39} scale={0.5} />
+        </>
+      ) : (
+        <Jepun cx={52} cy={46} scale={0.65} />
+      )}
+    </g>
+  );
+}
+
+/** Kepang rapi menjuntai di bahu kiri dengan ikatan merah terakota. */
+function Kepang() {
+  return (
+    <g>
+      {[78, 87, 96, 105].map((y, i) => (
+        <ellipse key={y} cx={50 - i * 1.5} cy={y} rx="6.5" ry="6" fill={HAIR} strokeWidth="2.5" />
+      ))}
+      <rect x="40" y="110" width="9" height="5" rx="2" fill={TERRA} strokeWidth="2" />
+      <path d="M44 115 L41 124 M45 115 L47 124" stroke={HAIR} strokeWidth="3" />
+    </g>
   );
 }
 
@@ -326,11 +464,12 @@ function Mouth({ mood }) {
   }
 }
 
-function Arms({ pose, skin, sleeve }) {
+function Arms({ pose, skin, sleeve, cuff }) {
   return (ARMS[pose] ?? ARMS.side).map(({ d, hand }) => (
     <g key={d}>
       <path d={d} fill="none" strokeWidth="14" />
       <path d={d} fill="none" stroke={sleeve} strokeWidth="8" />
+      {cuff && <circle cx={hand[0]} cy={hand[1]} r="8.5" fill={cuff} strokeWidth="2" />}
       <circle cx={hand[0]} cy={hand[1]} r="7" fill={skin} />
     </g>
   ));

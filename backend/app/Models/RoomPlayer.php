@@ -20,13 +20,18 @@ class RoomPlayer extends Model implements AuthenticatableContract
     public const ROLE_WAREHOUSE = 'warehouse';
     public const ROLES = [self::ROLE_CASHIER, self::ROLE_WAREHOUSE];
 
+    public const SKIN_MALE = 'male';
+    public const SKIN_FEMALE = 'female';
+    public const SKINS = [self::SKIN_MALE, self::SKIN_FEMALE];
+
     public const ROLE_LABELS = [
         self::ROLE_CASHIER => 'Kasir',
         self::ROLE_WAREHOUSE => 'Stok Gudang',
     ];
 
     protected $fillable = [
-        'room_id', 'player_name', 'role', 'session_token', 'is_prolog_ready', 'is_chapter1_done',
+        'room_id', 'player_name', 'role', 'avatar_skin', 'session_token',
+        'is_prolog_ready', 'is_chapter1_done', 'is_chapter3_done',
     ];
 
     protected $hidden = ['session_token'];
@@ -34,6 +39,8 @@ class RoomPlayer extends Model implements AuthenticatableContract
     protected $attributes = [
         'is_prolog_ready' => false,
         'is_chapter1_done' => false,
+        'is_chapter3_done' => false,
+        'avatar_skin' => self::SKIN_MALE,
     ];
 
     protected function casts(): array
@@ -41,6 +48,7 @@ class RoomPlayer extends Model implements AuthenticatableContract
         return [
             'is_prolog_ready' => 'boolean',
             'is_chapter1_done' => 'boolean',
+            'is_chapter3_done' => 'boolean',
         ];
     }
 

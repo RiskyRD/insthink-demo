@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Coffee, Loader2, LogIn, Package, PlusCircle, Sprout } from 'lucide-react';
+import { ArrowLeft, Coffee, Loader2, LogIn, Package, PlusCircle, Sprout } from 'lucide-react';
 import { api, ROLE_LABEL } from '../lib/api';
 
 const ROLE_INFO = {
@@ -8,7 +8,7 @@ const ROLE_INFO = {
 };
 
 /** Membuat ruangan baru atau bergabung dengan kode 6 karakter. */
-export default function Lobby({ onEnter }) {
+export default function Lobby({ onEnter, onBack }) {
   const [mode, setMode] = useState('create');
   const [name, setName] = useState('');
   const [roomCode, setRoomCode] = useState('');
@@ -35,6 +35,11 @@ export default function Lobby({ onEnter }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-lime-50 to-amber-50 p-4">
       <form onSubmit={submit} className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
+        {onBack && (
+          <button type="button" onClick={onBack} className="mb-2 flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-emerald-700">
+            <ArrowLeft className="h-4 w-4" aria-hidden /> Menu Utama
+          </button>
+        )}
         <div className="mb-6 text-center">
           <Sprout className="mx-auto h-12 w-12 text-emerald-600" aria-hidden />
           <h1 className="mt-2 text-2xl font-bold text-slate-900">INSTHINK</h1>

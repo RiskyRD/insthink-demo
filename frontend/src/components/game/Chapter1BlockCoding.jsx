@@ -424,6 +424,12 @@ function BuildStage({
       setErrorBlockId(failed.errorLine ? lines[failed.errorLine - 1]?.blockId ?? null : null);
       setFeedback({ mood: 'shocked', text: `${passed} dari ${graded.length} pelanggan terlayani dengan benar. ${failed.reason}` });
       playError();
+      // Catat uji gagal untuk dashboard fasilitator; kegagalan jaringan diabaikan agar tidak mengganggu siswa.
+      api(`/rooms/${room.room_code}/chapter1-attempt`, {
+        method: 'POST',
+        token,
+        body: { code, output: `${passed}/${graded.length} uji lulus. ${failed.reason}`.slice(0, 5000) },
+      }).catch(() => {});
       return;
     }
 

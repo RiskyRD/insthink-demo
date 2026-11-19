@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
+import AdminMonitorDashboard from './components/AdminMonitorDashboard';
 import { Loader2 } from 'lucide-react';
 import Lobby from './components/Lobby';
+import MainMenu from './components/MainMenu';
 import PlayPage from './components/PlayPage';
+import PythonMateriModule from './components/PythonMateriModule';
+import IcebreakingMiniGame from './components/IcebreakingMiniGame';
 import { api, clearSession, loadSession, saveSession } from './lib/api';
 
 export default function App() {
@@ -9,6 +13,25 @@ export default function App() {
   const [state, setState] = useState(null);
   const [restoring, setRestoring] = useState(Boolean(session));
   const [notice, setNotice] = useState(null);
+  // Tahap klien: 'menu' | 'materi' | 'icebreaking' | 'game' (lobby → ruangan co-op).
+  const [stage, setStage] = useState('menu');
+  // Mode Fasilitator di rute /admin, terpisah dari sesi pemain.
+  const [adminMode, setAdminMode] = useState(() => isAdminPath());
+
+  useEffect(() => {
+    const onPop = () => setAdminMode(isAdminPath());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const openAdmin = () => {
+    window.history.pushState(null, '', '/admin');
+    setAdminMode(true);
+  };
+  const closeAdmin = () => {
+    window.history.pushState(null, '', '/');
+    setAdminMode(false);
+  };
 
   // Pemulihan state setelah refresh: GET /api/rooms/{code}/state
   useEffect(() => {
@@ -47,6 +70,10 @@ export default function App() {
     setState(null);
   };
 
+  if (adminMode) {
+    return <AdminMonitorDashboard onExit={closeAdmin} />;
+  }
+
   if (restoring) {
     return (
       <div className="flex min-h-screen items-center justify-center gap-2 text-slate-600">
@@ -66,7 +93,14 @@ export default function App() {
           {notice}
         </div>
       )}
-      <Lobby onEnter={handleEnter} />
+      {stage === 'menu' && <MainMenu onSelect={setStage} onOpenAdmin={openAdmin} />}
+      {stage === 'materi' && <PythonMateriModule onBack={() => setStage('menu')} onNext={() => setStage('icebreaking')} />}
+      {stage === 'icebreaking' && <IcebreakingMiniGame onBack={() => setStage('menu')} onStartGame={() => setStage('game')} />}
+      {stage === 'game' && <Lobby onEnter={handleEnter} onBack={() => setStage('menu')} />}
     </>
   );
+}
+
+function isAdminPath() {
+  return window.location.pathname.replace(/\/+$/, '') === '/admin';
 }

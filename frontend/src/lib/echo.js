@@ -6,6 +6,8 @@ window.Pusher = Pusher;
 /**
  * Koneksi Laravel Reverb. Host default = host halaman, sehingga
  * di jaringan lab cukup membuka http://<ip-server>:5173.
+ *
+ * Tanpa token (mis. dashboard fasilitator) hanya channel publik yang bisa dipakai.
  */
 export function createEcho(token) {
   const scheme = import.meta.env.VITE_REVERB_SCHEME ?? 'http';
@@ -21,7 +23,7 @@ export function createEcho(token) {
     enabledTransports: ['ws', 'wss'],
     authEndpoint: '/api/broadcasting/auth',
     auth: {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      headers: token ? { Authorization: `Bearer ${token}`, Accept: 'application/json' } : { Accept: 'application/json' },
     },
   });
 }

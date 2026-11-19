@@ -3,6 +3,13 @@ const SKIN_CASHIER = '#e0ac69';
 const SKIN_WAREHOUSE = '#c68642';
 const MOUTH = '#7a2e2e';
 const TONGUE = '#f28b82';
+const HAIR = '#2b1a12';
+const TERRA = '#c4562f';
+const KUNYIT = '#f2b33d';
+const GOLD = '#e9b949';
+const CREAM = '#fff7e0';
+const TEAL = '#2a9d8f';
+const LEAF = '#4f8f3a';
 
 const MOOD_LABEL = {
   offline: 'sedang tidak terhubung',
@@ -18,15 +25,17 @@ const VARIANTS = {
     name: 'Kasir',
     badge: 'bg-[#ffd23f]',
     skin: SKIN_CASHIER,
-    shirt: '#f4b942',
-    pants: '#5b3a29',
+    shirt: '#fdfaf2', // kemeja putih rapi
+    pants: '#3b2a20',
+    udeng: { main: '#fffaf0', accent: '#8c3b2a', flower: true }, // udeng putih bermotif batik
   },
   warehouse: {
     name: 'Penjaga Gudang',
     badge: 'bg-[#d9a066]',
     skin: SKIN_WAREHOUSE,
     shirt: '#f5e6c8',
-    pants: '#8b5a2b',
+    pants: '#4a3426',
+    udeng: { main: TERRA, accent: GOLD, flower: false }, // udeng terakota bermotif emas
   },
 };
 
@@ -104,20 +113,20 @@ export function ShopCharacter({ variant = 'cashier', mood = 'idle', size = 150, 
 
           {/* Leher & kepala */}
           <rect x="72" y="88" width="16" height="14" rx="4" fill={v.skin} />
-          {variant === 'cashier' && <circle cx="80" cy="28" r="11" fill="#3b2416" />}
           <circle cx="50" cy="66" r="6" fill={v.skin} />
           <circle cx="110" cy="66" r="6" fill={v.skin} />
           <circle cx="80" cy="64" r="30" fill={v.skin} />
           <ellipse cx="62" cy="77" rx="5" ry="3" fill={TONGUE} stroke="none" opacity="0.5" />
           <ellipse cx="98" cy="77" rx="5" ry="3" fill={TONGUE} stroke="none" opacity="0.5" />
-          {variant === 'cashier' ? <CashierHair /> : <WarehouseHair />}
+          <Udeng {...v.udeng} />
 
           <Brows mood={face} />
           <Eyes mood={face} />
           <Mouth mood={face} />
 
-          {/* Properti di tangan: cangkir kopi (Kasir) atau papan catatan (Gudang) */}
+          {/* Properti: cangkir kopi (Kasir) atau papan catatan kayu & kotak bahan (Gudang) */}
           {pose === 'side' && variant === 'cashier' && <Cup x={122} y={158} />}
+          {variant === 'warehouse' && <IngredientCrate />}
           {pose === 'hold' && <Clipboard />}
 
           <Arms pose={pose} skin={v.skin} sleeve={v.shirt} />
@@ -140,19 +149,53 @@ export const WarehouseCharacter = (props) => <ShopCharacter variant="warehouse" 
 // ----------------------------------------------------------------------
 // Bagian tubuh
 // ----------------------------------------------------------------------
+/** Pita motif tenun Endek Bali: belah ketupat kunyit/krem dengan titik toska di dasar terakota. */
+function EndekStrip({ x, y, w, h, base = TERRA }) {
+  const n = Math.max(1, Math.round(w / h));
+  const step = w / n;
+  const cy = y + h / 2;
+  return (
+    <g strokeWidth="1.5">
+      <rect x={x} y={y} width={w} height={h} fill={base} />
+      {Array.from({ length: n }, (_, i) => {
+        const cx = x + step * (i + 0.5);
+        const ry = h * 0.38;
+        const rx = step * 0.42;
+        return (
+          <g key={i}>
+            <path d={`M${cx} ${cy - ry} L${cx + rx} ${cy} L${cx} ${cy + ry} L${cx - rx} ${cy} Z`} fill={i % 2 ? CREAM : KUNYIT} />
+            <circle cx={cx} cy={cy} r={h * 0.12} fill={TEAL} stroke="none" />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** Kerah kemeja rapi. */
+function ShirtCollar({ fill }) {
+  return (
+    <>
+      <path d="M72 100 L80 112 L70 116 L64 104 Z" fill={fill} strokeWidth="2.5" />
+      <path d="M88 100 L80 112 L90 116 L96 104 Z" fill={fill} strokeWidth="2.5" />
+    </>
+  );
+}
+
 function CashierOutfit() {
   return (
     <>
-      <path d="M70 102 L80 114 L90 102" fill="none" />
-      {/* Celemek hijau daun */}
-      <path d="M58 120 L66 104" fill="none" stroke="#2f7d32" strokeWidth="4" />
-      <path d="M102 120 L94 104" fill="none" stroke="#2f7d32" strokeWidth="4" />
-      <path d="M54 120 L106 120 L114 184 Q80 190 46 184 Z" fill="#5cb85c" />
-      <rect x="66" y="152" width="28" height="16" rx="3" fill="#4a9d4a" />
+      <ShirtCollar fill="#fdfaf2" />
+      {/* Celemek kedai kopi hijau daun beraksen Endek */}
+      <path d="M58 120 L66 106" fill="none" stroke="#2f6b2a" strokeWidth="4" />
+      <path d="M102 120 L94 106" fill="none" stroke="#2f6b2a" strokeWidth="4" />
+      <path d="M54 120 L106 120 L114 184 Q80 190 46 184 Z" fill={LEAF} />
+      <EndekStrip x={54} y={120} w={52} h={9} />
+      <EndekStrip x={66} y={154} w={28} h={14} />
+      <rect x="66" y="154" width="28" height="14" rx="2" fill="none" strokeWidth="2.5" />
       {/* Lambang cangkir di dada */}
-      <path d="M72 128 L88 128 L86 140 L74 140 Z" fill="#fffaf0" strokeWidth="2.5" />
-      <path d="M88 131 Q93 132 87 137" fill="none" strokeWidth="2.5" />
-      <path d="M77 125 Q75 122 77 119 M83 125 Q81 122 83 119" fill="none" strokeWidth="2" stroke="#fffaf0" />
+      <path d="M72 134 L88 134 L86 146 L74 146 Z" fill="#fffaf0" strokeWidth="2.5" />
+      <path d="M88 137 Q93 138 87 143" fill="none" strokeWidth="2.5" />
     </>
   );
 }
@@ -160,37 +203,73 @@ function CashierOutfit() {
 function WarehouseOutfit() {
   return (
     <>
-      {/* Baju kodok cokelat kayu */}
-      <path d="M60 118 L54 104" fill="none" stroke="#6b3f1d" strokeWidth="5" />
-      <path d="M100 118 L106 104" fill="none" stroke="#6b3f1d" strokeWidth="5" />
-      <path d="M60 118 L100 118 L100 140 L118 184 Q80 190 42 184 L60 140 Z" fill="#a0522d" />
-      <circle cx="63" cy="123" r="3" fill="#ffd23f" />
-      <circle cx="97" cy="123" r="3" fill="#ffd23f" />
-      <rect x="70" y="126" width="20" height="14" rx="2" fill="#8b4513" />
-      <path d="M84 120 L86 132" stroke="#ffd23f" strokeWidth="3" />
+      <ShirtCollar fill="#f5e6c8" />
+      <path d="M80 114 L80 136" strokeWidth="2" />
+      <circle cx="80" cy="122" r="1.8" fill={INK} stroke="none" />
+      <circle cx="80" cy="131" r="1.8" fill={INK} stroke="none" />
+      {/* Saput kain Endek dililit di pinggang, diikat di sisi kiri */}
+      <path d="M42 142 Q80 150 118 142 L122 180 Q80 188 38 180 Z" fill={TERRA} />
+      <EndekStrip x={44} y={154} w={74} h={12} />
+      <path d="M40 174 Q80 182 120 174" fill="none" stroke={GOLD} strokeWidth="3" />
+      {/* Umpal (sabuk) kunyit */}
+      <path d="M43 136 Q80 144 117 136 L118 145 Q80 153 42 145 Z" fill={KUNYIT} />
+      <path d="M46 144 L36 164 L48 160 Z" fill={TERRA} />
+      <path d="M50 146 L46 168 L56 162 Z" fill={KUNYIT} />
     </>
   );
 }
 
-function CashierHair() {
+/** Udeng Bali: ikat kepala dengan lipatan depan (bebidakan) dan motif batik. */
+function Udeng({ main, accent, flower }) {
   return (
-    <>
-      <path d="M50 62 Q48 32 80 32 Q112 32 110 62 Q100 46 80 48 Q62 46 50 62 Z" fill="#3b2416" />
-      {/* Jepit rambut daun */}
-      <path d="M98 40 Q108 34 112 42 Q104 48 98 40 Z" fill="#5cb85c" strokeWidth="2.5" />
-    </>
+    <g>
+      {/* Rambut di sisi kepala */}
+      <path d="M51 68 Q49 54 54 48 L106 48 Q111 54 109 68 Q105 58 100 56 L60 56 Q55 58 51 68 Z" fill={HAIR} />
+      {/* Ujung ikatan di belakang kanan */}
+      <path d="M108 44 L124 38 L120 54 Z" fill={main} />
+      {/* Tutup kepala */}
+      <path d="M50 50 Q46 22 80 22 Q114 22 110 50 Q80 40 50 50 Z" fill={main} />
+      {[[62, 34], [74, 28], [90, 29], [100, 37], [68, 42], [94, 43]].map(([x, y]) => (
+        <circle key={`${x}-${y}`} cx={x} cy={y} r="2.2" fill={accent} stroke="none" />
+      ))}
+      <path d="M58 40 Q64 36 70 40 M86 36 Q92 32 98 36" fill="none" stroke={accent} strokeWidth="2" />
+      {/* Lilitan di dahi */}
+      <path d="M48 52 Q80 40 112 52 L110 45 Q80 34 50 45 Z" fill={main} />
+      <path d="M52 49 Q80 39 108 49" fill="none" stroke={accent} strokeWidth="2" strokeDasharray="4 4" />
+      {/* Lipatan depan yang menjulang */}
+      <path d="M78 42 Q76 14 98 10 Q90 24 92 42 Z" fill={main} />
+      <path d="M84 38 Q84 22 94 16" fill="none" stroke={accent} strokeWidth="2" />
+      {flower && <Jepun cx={108} cy={40} scale={0.55} />}
+    </g>
   );
 }
 
-function WarehouseHair() {
+function Jepun({ cx, cy, scale = 1 }) {
   return (
-    <>
-      <path d="M52 60 Q52 38 80 38 Q108 38 108 60 Q96 50 80 52 Q64 50 52 60 Z" fill="#2d1b12" />
-      {/* Caping anyaman */}
-      <path d="M28 50 L80 12 L132 50 Q80 60 28 50 Z" fill="#e9c46a" />
-      <path d="M46 37 Q80 30 114 37 M60 27 Q80 22 100 27" fill="none" stroke="#b5892f" strokeWidth="2.5" />
-      <path d="M80 14 L80 54 M56 32 L66 54 M104 32 L94 54" fill="none" stroke="#b5892f" strokeWidth="2" />
-    </>
+    <g transform={`translate(${cx} ${cy}) scale(${scale})`} strokeWidth="2.5">
+      {[0, 72, 144, 216, 288].map((deg) => (
+        <ellipse key={deg} cx="0" cy="-6" rx="4.5" ry="7" fill="#fffdf5" transform={`rotate(${deg})`} />
+      ))}
+      <circle cx="0" cy="0" r="4" fill="#ffd23f" />
+    </g>
+  );
+}
+
+/** Kotak kayu berisi bahan baku (biji kopi & pisang) di samping kaki Penjaga Gudang. */
+function IngredientCrate() {
+  return (
+    <g strokeWidth="2.5">
+      {[[126, 170], [133, 167], [140, 171]].map(([cx, cy]) => (
+        <g key={cx}>
+          <ellipse cx={cx} cy={cy} rx="4" ry="5" fill="#5b3216" />
+          <path d={`M${cx} ${cy - 4} Q${cx - 2} ${cy} ${cx} ${cy + 4}`} fill="none" stroke="#c08552" strokeWidth="1.2" />
+        </g>
+      ))}
+      <path d="M144 172 Q146 158 158 158 Q150 164 150 172 Z" fill="#ffd54f" strokeWidth="2" />
+      <rect x="118" y="172" width="40" height="28" rx="3" fill="#c8915a" />
+      <path d="M118 181 L158 181 M118 190 L158 190" stroke="#8b5a2b" strokeWidth="2" />
+      <path d="M124 172 L124 200 M152 172 L152 200" stroke="#8b5a2b" strokeWidth="2" />
+    </g>
   );
 }
 
@@ -269,7 +348,8 @@ function Cup({ x, y }) {
 function Clipboard() {
   return (
     <g strokeWidth="2.5">
-      <rect x="60" y="122" width="40" height="36" rx="3" fill="#d9a066" />
+      <rect x="60" y="122" width="40" height="36" rx="3" fill="#b9824a" />
+      <path d="M62 126 Q70 124 76 128 M84 154 Q92 152 98 155" fill="none" stroke="#8b5a2b" strokeWidth="1.5" />
       <rect x="65" y="127" width="30" height="27" rx="1" fill="#fffaf0" strokeWidth="2" />
       <rect x="73" y="119" width="14" height="6" rx="2" fill="#64748b" strokeWidth="2" />
       <path d="M69 135 L91 135 M69 141 L88 141 M69 147 L84 147" fill="none" strokeWidth="2" stroke="#94a3b8" />

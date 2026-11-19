@@ -2,8 +2,14 @@ import { useEffect, useState } from 'react';
 
 const INK = '#1e293b';
 const SKIN = '#f1c27d';
-const BLOUSE = '#e76f51';
-const SCARF = '#2a9d8f';
+const HAIR = '#2b1a12';
+const KEBAYA = '#f2b33d'; // kuning kunyit
+const KEBAYA_LACE = '#ffe39a';
+const KEMBEN = '#a5d68f'; // hijau lembut
+const TERRA = '#c4562f'; // merah terakota (senteng tenun ikat)
+const KAMEN = '#3f7d4a'; // hijau daun tua
+const GOLD = '#e9b949';
+const CREAM = '#fff7e0';
 const MOUTH = '#7a2e2e';
 const TONGUE = '#f28b82';
 const TYPE_SPEED_MS = 22;
@@ -23,7 +29,8 @@ const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 /**
- * Karakter kartun Bu Ratna, Ketua Kelompok Tani Sumber Rejeki.
+ * Karakter kartun Bu Ratna, pemilik kedai, berbusana adat Bali:
+ * kebaya kunyit, senteng tenun ikat, kamen, rambut pusung dengan bunga jepun, dan sokasi.
  *
  * @param {'idle'|'talking'|'thinking'|'happy'|'shocked'} mood
  * @param {string}  dialogue     teks balon percakapan (kosong = balon disembunyikan)
@@ -34,7 +41,7 @@ const prefersReducedMotion = () =>
  * @param {string}  title        label kecil di atas teks balon
  */
 export default function BuRatnaCharacter({
-  mood = 'idle', dialogue = '', size = 180, bubblePosition = 'right', replayKey, actions = null, className = '', title = 'Ketua Kelompok Tani',
+  mood = 'idle', dialogue = '', size = 180, bubblePosition = 'right', replayKey, actions = null, className = '', title = 'Pemilik Kedai',
 }) {
   const [shown, setShown] = useState(dialogue ?? '');
 
@@ -131,30 +138,55 @@ function RatnaSvg({ mood }) {
       <ellipse className={mood === 'happy' ? 'ratna-hop-shadow' : ''} cx="110" cy="291" rx="62" ry="8" fill="#000" opacity="0.15" stroke="none" />
 
       <g className={bodyAnim}>
-        {/* Rok batik */}
-        <path d="M74 205 L146 205 L162 282 Q110 292 58 282 Z" fill="#7b4b2a" />
-        <path d="M66 252 Q80 245 94 252 T122 252 T152 252" fill="none" stroke="#d9a066" strokeWidth="3" />
-        {[[84, 230], [110, 226], [136, 232], [96, 270], [126, 272]].map(([cx, cy]) => (
-          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" fill="#d9a066" stroke="none" />
+        {/* Kamen (kain bawah) hijau dengan lipatan depan dan pinggiran emas */}
+        <path d="M74 205 L146 205 L160 282 Q110 292 60 282 Z" fill={KAMEN} />
+        <path d="M62 272 Q110 282 158 272 L160 282 Q110 292 60 282 Z" fill={GOLD} strokeWidth="2.5" />
+        {[[86, 226], [134, 230], [80, 254], [138, 258], [94, 244]].map(([x, y]) => (
+          <path key={`${x}-${y}`} d={`M${x - 5} ${y} q5 -7 10 0 q-5 7 -10 0 Z`} fill={GOLD} stroke="none" />
         ))}
+        <path d="M120 206 L126 206 L113 284 L106 284 Z" fill={GOLD} strokeWidth="2.5" />
 
         {/* Sandal */}
         <ellipse cx="88" cy="287" rx="14" ry="6" fill="#3e2723" />
         <ellipse cx="132" cy="287" rx="14" ry="6" fill="#3e2723" />
 
-        {/* Baju kerja */}
-        <path d="M76 158 Q110 148 144 158 L148 212 Q110 220 72 212 Z" fill={BLOUSE} />
+        {/* Leher */}
+        <rect x="101" y="134" width="18" height="24" rx="6" fill={SKIN} />
 
-        {/* Celemek */}
-        <path d="M88 170 L132 170 L140 262 Q110 270 80 262 Z" fill="#fffaf0" />
-        <path d="M80 210 Q110 216 140 210 L141 218 Q110 224 79 218 Z" fill="#f4a261" />
-        <path d="M98 230 h24 v12 q-12 6 -24 0 Z" fill="#f4e1c1" strokeWidth="2.5" />
-        <path d="M110 184 q11 3 9 15 q-11 -2 -9 -15 Z" fill="#43a047" strokeWidth="2" />
-        <path d="M110 184 L113 196" strokeWidth="1.5" />
+        {/* Kebaya kunyit dengan kemben hijau lembut dan renda */}
+        <path d="M76 158 Q110 148 144 158 L150 212 Q110 220 70 212 Z" fill={KEBAYA} />
+        <path d="M96 153 Q110 157 124 153 L110 196 Z" fill={KEMBEN} />
+        {[0.15, 0.35, 0.55, 0.75].map((t) => (
+          <g key={t} stroke="none" fill={CREAM}>
+            <circle cx={96 + 14 * t} cy={153 + 43 * t} r="2.4" />
+            <circle cx={124 - 14 * t} cy={153 + 43 * t} r="2.4" />
+          </g>
+        ))}
+        {[[86, 172], [134, 172], [84, 194], [136, 194]].map(([x, y]) => (
+          <g key={`${x}-${y}`} stroke="none" fill={KEBAYA_LACE}>
+            <circle cx={x - 3} cy={y} r="2.5" />
+            <circle cx={x + 3} cy={y} r="2.5" />
+            <circle cx={x} cy={y - 3} r="2.5" />
+            <circle cx={x} cy={y + 3} r="2.5" />
+          </g>
+        ))}
+        <circle cx="110" cy="184" r="4.5" fill={GOLD} strokeWidth="2.5" />
 
-        {/* Lengan kiri memegang keranjang keripik */}
-        <path d="M80 160 Q62 170 60 196 L62 214 L77 214 L78 196 Q82 182 88 176 Z" fill={BLOUSE} />
-        <BananaChipBasket />
+        {/* Senteng tenun ikat merah terakota di pinggang */}
+        <path d="M70 198 Q110 206 150 198 L151 216 Q110 224 69 216 Z" fill={TERRA} />
+        {[78, 90, 102, 114, 126, 138].map((x, i) => {
+          const y = 208 + 3 * (1 - ((x + 6 - 110) / 40) ** 2);
+          return (
+            <path key={x} d={`M${x + 6} ${y - 5} l5 5 l-5 5 l-5 -5 Z`} fill={i % 2 ? GOLD : CREAM} strokeWidth="1.5" />
+          );
+        })}
+        <path d="M78 214 L72 242 L84 240 L86 216 Z" fill={TERRA} />
+        <path d="M74 236 L83 235" stroke={GOLD} strokeWidth="2.5" />
+
+        {/* Lengan kiri memegang sokasi */}
+        <path d="M80 160 Q62 170 60 196 L62 214 L77 214 L78 196 Q82 182 88 176 Z" fill={KEBAYA} />
+        <path d="M61 207 L77 207 L77 214 L62 214 Z" fill={CREAM} strokeWidth="2" />
+        <Sokasi />
         <circle cx="69" cy="221" r="9" fill={SKIN} />
 
         {/* Kepala (mengangguk saat berbicara) */}
@@ -166,14 +198,26 @@ function RatnaSvg({ mood }) {
             transition: 'transform .4s',
           }}
         >
-          {/* Kerudung belakang & selendang bahu */}
-          <path d="M62 112 Q60 50 110 50 Q160 50 158 112 Q166 150 170 176 Q110 196 50 176 Q54 150 62 112 Z" fill={SCARF} />
-          <path d="M66 140 Q74 160 90 170 M154 140 Q146 160 130 170" fill="none" stroke="#1f7a70" strokeWidth="3" />
+          {/* Pusung (sanggul Bali) dengan tusuk emas */}
+          <ellipse cx="110" cy="62" rx="26" ry="17" fill={HAIR} />
+          <path d="M88 52 L134 46" stroke={GOLD} strokeWidth="4" />
+          <circle cx="134" cy="46" r="3.5" fill={GOLD} strokeWidth="2" />
 
-          {/* Wajah */}
+          {/* Rambut belakang, telinga, dan subeng (anting emas) */}
+          <path d="M74 108 Q72 66 110 64 Q148 66 146 108 Q146 128 138 136 L82 136 Q74 128 74 108 Z" fill={HAIR} />
+          <circle cx="78" cy="112" r="7" fill={SKIN} />
+          <circle cx="142" cy="112" r="7" fill={SKIN} />
+          <circle cx="78" cy="120" r="3.5" fill={GOLD} strokeWidth="2" />
+          <circle cx="142" cy="120" r="3.5" fill={GOLD} strokeWidth="2" />
+
+          {/* Wajah dan poni belah tengah */}
           <ellipse cx="110" cy="108" rx="32" ry="36" fill={SKIN} />
-          <path d="M76 96 Q78 66 110 64 Q142 66 144 96 Q130 80 110 80 Q90 80 76 96 Z" fill={SCARF} />
-          <circle cx="110" cy="152" r="5" fill="#ffd23f" strokeWidth="2.5" />
+          <path d="M78 100 Q80 70 110 70 Q140 70 142 100 Q132 82 110 84 Q88 82 78 100 Z" fill={HAIR} />
+          <path d="M110 72 L110 82" stroke="#5a3a26" strokeWidth="2" />
+
+          {/* Bunga jepun (kamboja) di sisi telinga */}
+          <Jepun cx={150} cy={104} scale={0.75} />
+          <Jepun cx={146} cy={88} scale={1} />
 
           <ellipse cx="89" cy="122" rx="7" ry="4.5" fill={TONGUE} stroke="none" opacity={mood === 'happy' ? 0.9 : 0.55} />
           <ellipse cx="131" cy="122" rx="7" ry="4.5" fill={TONGUE} stroke="none" opacity={mood === 'happy' ? 0.9 : 0.55} />
@@ -193,7 +237,8 @@ function RatnaSvg({ mood }) {
           }}
         >
           <g className={armAnim}>
-            <rect x="139" y="156" width="18" height="60" rx="9" fill={BLOUSE} />
+            <rect x="139" y="156" width="18" height="60" rx="9" fill={KEBAYA} />
+            <rect x="139" y="206" width="18" height="8" rx="3" fill={CREAM} strokeWidth="2" />
             <circle cx="148" cy="222" r="9" fill={SKIN} />
           </g>
         </g>
@@ -204,21 +249,57 @@ function RatnaSvg({ mood }) {
   );
 }
 
-function BananaChipBasket() {
-  const chips = [[40, 210, -20], [56, 205, 15], [72, 207, -10], [88, 210, 25], [62, 213, 5], [47, 214, 30], [80, 214, -25]];
+/** Bunga jepun (kamboja): lima kelopak putih dengan pusat kuning. */
+function Jepun({ cx, cy, scale = 1 }) {
+  return (
+    <g transform={`translate(${cx} ${cy}) scale(${scale})`} strokeWidth="2">
+      {[0, 72, 144, 216, 288].map((deg) => (
+        <ellipse key={deg} cx="0" cy="-6" rx="4.5" ry="7" fill="#fffdf5" transform={`rotate(${deg})`} />
+      ))}
+      <circle cx="0" cy="0" r="4" fill="#ffd23f" />
+    </g>
+  );
+}
+
+/** Sokasi: wadah anyaman bambu khas Bali berisi pisang, kopi, dan jajanan pasar. */
+function Sokasi() {
+  const bananas = [[38, -18], [48, -6], [58, 8]];
   return (
     <g>
-      {chips.map(([cx, cy, r]) => (
-        <g key={`${cx}-${cy}`} transform={`rotate(${r} ${cx} ${cy})`}>
-          <ellipse cx={cx} cy={cy} rx="10" ry="6" fill="#f6c945" strokeWidth="2" />
-          <circle cx={cx - 2} cy={cy - 1} r="1.5" fill="#b7791f" stroke="none" />
-          <circle cx={cx + 3} cy={cy + 1} r="1.2" fill="#b7791f" stroke="none" />
-        </g>
+      {/* Mulut wadah bagian belakang */}
+      <ellipse cx="64" cy="214" rx="39" ry="7" fill="#7a4b22" />
+
+      {/* Isi: pisang, karung kopi, jaja klepon & jaja merah muda */}
+      {bananas.map(([x, r]) => (
+        <path
+          key={x}
+          transform={`rotate(${r} ${x} 212)`}
+          d={`M${x - 10} 214 Q${x - 9} 194 ${x + 8} 191 Q${x - 1} 200 ${x} 214 Z`}
+          fill="#ffd54f"
+          strokeWidth="2"
+        />
       ))}
-      <path d="M24 216 L104 216 L95 250 Q64 260 33 250 Z" fill="#c8913f" />
-      <path d="M42 218 L44 254 M58 218 L58 256 M74 218 L73 256 M90 218 L87 253" stroke="#8b5e2b" strokeWidth="2" />
-      <path d="M28 231 Q64 239 100 231 M31 243 Q64 251 97 243" fill="none" stroke="#8b5e2b" strokeWidth="2" />
-      <ellipse cx="64" cy="216" rx="41" ry="7" fill="#a87332" />
+      <path d="M66 216 L68 198 Q70 192 79 194 Q88 192 90 198 L92 216 Z" fill="#8d5a3b" strokeWidth="2.5" />
+      <path d="M71 199 Q79 203 87 199" fill="none" stroke={GOLD} strokeWidth="2" />
+      <ellipse cx="79" cy="207" rx="3.5" ry="4.5" fill="#4e2a14" strokeWidth="1.5" />
+      <path d="M79 203 Q77 207 79 211" fill="none" stroke="#c08552" strokeWidth="1.2" />
+      <circle cx="96" cy="212" r="5" fill="#6abf4b" strokeWidth="2" />
+      <circle cx="98" cy="205" r="4" fill="#f48fb1" strokeWidth="2" />
+
+      {/* Badan anyaman bambu */}
+      <path d="M25 214 Q64 228 103 214 L96 248 Q64 258 32 248 Z" fill="#d9a35b" />
+      <path
+        d="M40 223 L42 252 M52 226 L53 255 M64 227 L64 256 M76 226 L75 255 M88 223 L86 252"
+        stroke="#a8742f"
+        strokeWidth="1.8"
+      />
+      <path d="M30 241 Q64 253 98 241" fill="none" stroke="#a8742f" strokeWidth="1.8" />
+
+      {/* Pita lukisan merah-emas khas sokasi */}
+      <path d="M27 223 Q64 237 101 223 L99 232 Q64 246 29 232 Z" fill={TERRA} strokeWidth="2.5" />
+      {[36, 50, 64, 78, 92].map((x) => (
+        <circle key={x} cx={x} cy={229 + 5 * (1 - ((x - 64) / 37) ** 2)} r="2" fill={GOLD} stroke="none" />
+      ))}
     </g>
   );
 }

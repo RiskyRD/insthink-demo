@@ -110,9 +110,18 @@ const VillageScene = memo(function VillageScene() {
         ))}
       </g>
 
-      <BananaTree x={955} y={792} scale={1} delay={0} />
+      {/* Pohon kelapa di pematang sawah terasering */}
+      <CoconutPalm x={150} y={724} scale={0.9} delay={-1} />
+      <CoconutPalm x={420} y={712} scale={0.75} delay={-3} />
+
       <ProductionHouse />
       <BananaTree x={1395} y={800} scale={0.85} delay={-2} />
+
+      {/* Gerbang kedai: candi bentar mengapit jalan setapak, penjor, dan pohon jepun */}
+      <FrangipaniTree x={590} y={846} />
+      <CandiBentarHalf x={712} y={852} />
+      <CandiBentarHalf x={922} y={852} mirror />
+      <Penjor x={1002} y={852} />
 
       {/* Rumput depan */}
       {[80, 240, 400, 620, 940, 1180, 1330].map((x) => (
@@ -194,10 +203,31 @@ function ProductionHouse() {
         <circle key={d} className="village-smoke" cx="1278" cy="496" r="16" fill="#f5f5f5" style={{ animationDelay: `${d}s` }} />
       ))}
 
-      {/* Atap */}
-      <path d="M992 624 L1175 498 L1358 624 Z" fill="#bc6c25" />
-      <path d="M1040 590 L1310 590 M1080 562 L1270 562 M1120 534 L1230 534" stroke="#8c4a12" strokeWidth="2.5" />
-      <path d="M985 628 L1175 494 L1365 628" fill="none" stroke={INK} strokeWidth="7" />
+      {/* Saka (tiang) kayu berukir di sudut bale */}
+      {[1030, 1306].map((x) => (
+        <g key={x}>
+          <rect x={x} y="612" width="14" height="162" fill="#8b5a2b" />
+          <rect x={x - 3} y="612" width="20" height="10" rx="2" fill="#e9b949" />
+          <rect x={x - 3} y="762" width="20" height="10" rx="2" fill="#e9b949" />
+        </g>
+      ))}
+
+      {/* Atap bale Bali bersusun dari ijuk/alang-alang */}
+      <path d="M984 636 L1064 562 L1286 562 L1366 636 Q1175 650 984 636 Z" fill="#8a5a2b" />
+      {Array.from({ length: 18 }, (_, i) => {
+        const x = 1004 + i * 19;
+        return <path key={i} d={`M${x} 636 L${x + (x < 1175 ? 10 : -10)} 600`} stroke="#5d3a1a" strokeWidth="2" />;
+      })}
+      <path d="M984 636 Q1175 650 1366 636" fill="none" stroke="#d9a35b" strokeWidth="5" />
+      <path d="M1040 566 L1124 512 L1226 512 L1310 566 Q1175 576 1040 566 Z" fill="#9c6a35" />
+      {Array.from({ length: 10 }, (_, i) => {
+        const x = 1064 + i * 25;
+        return <path key={i} d={`M${x} 566 L${x + (x < 1175 ? 7 : -7)} 538`} stroke="#5d3a1a" strokeWidth="2" />;
+      })}
+      {/* Murdha (mahkota bubungan) */}
+      <path d="M1124 512 L1226 512" stroke={INK} strokeWidth="7" />
+      <path d="M1160 512 L1166 488 L1175 474 L1184 488 L1190 512 Z" fill="#e9b949" />
+      <circle cx="1175" cy="470" r="6" fill="#c4562f" />
 
       {/* Papan nama */}
       <path d="M1112 548 L1100 528 M1238 548 L1250 528" strokeWidth="3" />
@@ -214,7 +244,7 @@ function ProductionHouse() {
         textLength="212"
         lengthAdjust="spacingAndGlyphs"
       >
-        DAPUR SUMBER REJEKI
+        KEDAI KOPI BU RATNA
       </text>
 
       {/* Pintu */}
@@ -238,6 +268,125 @@ function ProductionHouse() {
       <ellipse cx="1277" cy="740" rx="36" ry="8" fill="#e0b062" />
       {[[1262, 737], [1274, 734], [1288, 738], [1280, 742], [1268, 742]].map(([cx, cy], i) => (
         <ellipse key={i} cx={cx} cy={cy} rx="6" ry="3.5" fill="#f6c945" strokeWidth="1.5" />
+      ))}
+    </g>
+  );
+}
+
+/**
+ * Separuh candi bentar (gerbang terbelah khas Bali), bata terakota dengan list batu paras.
+ * `x` = sisi dalam (belahan), `y` = alas. `mirror` membalik ke kanan.
+ */
+function CandiBentarHalf({ x, y, mirror = false }) {
+  // [lebar, tinggi] tiap tingkat dari bawah ke atas (koordinat lokal, meluas ke kiri dari x=0).
+  const tiers = [[74, 36], [62, 40], [50, 36], [38, 30], [26, 26]];
+  let top = 0;
+  return (
+    <g transform={`translate(${x} ${y}) scale(${mirror ? -1 : 1} 1)`} stroke={INK} strokeWidth="3">
+      {tiers.map(([w, h], i) => {
+        const y0 = top - h;
+        top = y0;
+        return (
+          <g key={i}>
+            <rect x={-w} y={y0} width={w} height={h} fill="#c4562f" />
+            {i < 2 && (
+              <path
+                d={`M${-w} ${y0 + h / 2} L0 ${y0 + h / 2} M${-w / 2} ${y0} L${-w / 2} ${y0 + h / 2} M${-w / 4} ${y0 + h / 2} L${-w / 4} ${y0 + h}`}
+                stroke="#8f3a1d"
+                strokeWidth="2"
+              />
+            )}
+            <rect x={-w - 4} y={y0 - 5} width={w + 4} height="8" rx="2" fill="#efe3c6" />
+          </g>
+        );
+      })}
+      {/* Ukiran paras dan mahkota kecil di puncak */}
+      <circle cx="-31" cy="-60" r="7" fill="#efe3c6" strokeWidth="2.5" />
+      <path d="M-26 -168 L-13 -186 L0 -168 Z" fill="#efe3c6" />
+      <circle cx="-13" cy="-190" r="4" fill="#e9b949" strokeWidth="2.5" />
+    </g>
+  );
+}
+
+/** Penjor: bambu melengkung berhias janur dan lamak, dipasang di depan gerbang. */
+function Penjor({ x, y }) {
+  const pole = `M${x} ${y} Q${x + 6} ${y - 200} ${x - 10} ${y - 250} Q${x - 40} ${y - 310} ${x - 100} ${y - 296}`;
+  return (
+    <g strokeLinecap="round">
+      <path d={pole} fill="none" stroke={INK} strokeWidth="10" />
+      <path d={pole} fill="none" stroke="#e9c46a" strokeWidth="5" />
+      {/* Lamak (hiasan janur) di bagian bawah */}
+      <path d={`M${x - 12} ${y - 110} L${x + 14} ${y - 110} L${x + 10} ${y - 60} L${x - 8} ${y - 60} Z`} fill="#fff1c1" stroke={INK} strokeWidth="2.5" />
+      <path d={`M${x - 6} ${y - 100} L${x + 1} ${y - 88} L${x + 8} ${y - 100} M${x - 4} ${y - 82} L${x + 1} ${y - 72} L${x + 6} ${y - 82}`} fill="none" stroke="#4f8f3a" strokeWidth="2.5" />
+      {/* Sampian di ujung yang menjuntai */}
+      <g className="village-sway" style={{ transformOrigin: `${x - 100}px ${y - 296}px` }}>
+        <path d={`M${x - 100} ${y - 296} L${x - 100} ${y - 262}`} stroke={INK} strokeWidth="2.5" />
+        <path
+          d={`M${x - 110} ${y - 262} L${x - 90} ${y - 262} L${x - 94} ${y - 240} L${x - 100} ${y - 230} L${x - 106} ${y - 240} Z`}
+          fill="#fff1c1"
+          stroke={INK}
+          strokeWidth="2.5"
+        />
+      </g>
+      {/* Janur kecil di sepanjang lengkungan */}
+      {[[x - 30, y - 290], [x - 55, y - 300], [x - 78, y - 300]].map(([jx, jy]) => (
+        <path key={jx} d={`M${jx} ${jy} q-4 14 2 22`} fill="none" stroke="#e9c46a" strokeWidth="3" />
+      ))}
+    </g>
+  );
+}
+
+/** Pohon kelapa melengkung dengan pelepah bergoyang dan buah kelapa. */
+function CoconutPalm({ x, y, scale = 1, delay = 0 }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(${scale})`} stroke={INK} strokeWidth="3">
+      <path d="M-8 0 Q-2 -120 30 -230 L42 -226 Q14 -120 8 0 Z" fill="#a1785a" />
+      {[-40, -85, -130, -175].map((ty, i) => (
+        <path key={ty} d={`M${-5 + i * 7} ${ty} L${10 + i * 8} ${ty - 4}`} stroke="#6d4c33" strokeWidth="2.5" />
+      ))}
+      <g className="village-sway" style={{ transformOrigin: '36px -228px', animationDelay: `${delay}s` }}>
+        {[
+          'M36 -228 Q-20 -270 -70 -220 Q-20 -246 36 -224 Z',
+          'M36 -228 Q90 -280 140 -226 Q90 -250 36 -224 Z',
+          'M36 -230 Q10 -300 -30 -300 Q8 -270 34 -226 Z',
+          'M36 -230 Q70 -306 110 -290 Q70 -266 38 -226 Z',
+          'M36 -226 Q-10 -220 -40 -180 Q0 -206 36 -222 Z',
+          'M36 -226 Q90 -214 112 -172 Q76 -204 36 -222 Z',
+        ].map((d, i) => (
+          <path key={i} d={d} fill={i % 2 ? '#4caf50' : '#43a047'} />
+        ))}
+        {[[28, -218], [42, -216], [35, -208]].map(([cx, cy]) => (
+          <circle key={`${cx}${cy}`} cx={cx} cy={cy} r="8" fill="#7a5230" />
+        ))}
+      </g>
+    </g>
+  );
+}
+
+/** Pohon jepun (kamboja) bercabang dengan bunga putih-kuning. */
+function FrangipaniTree({ x, y }) {
+  const tips = [[-58, -118], [-20, -150], [26, -146], [62, -110]];
+  return (
+    <g transform={`translate(${x} ${y})`} stroke={INK} strokeWidth="3">
+      <path d="M-10 0 Q-12 -40 -4 -70 L8 -70 Q12 -40 10 0 Z" fill="#9b8b7a" />
+      {tips.map(([tx, ty]) => (
+        <path key={tx} d={`M2 -66 Q${tx / 2} ${ty / 2 - 20} ${tx} ${ty}`} fill="none" stroke="#9b8b7a" strokeWidth="9" />
+      ))}
+      {tips.map(([tx, ty]) => (
+        <path key={`o${tx}`} d={`M2 -66 Q${tx / 2} ${ty / 2 - 20} ${tx} ${ty}`} fill="none" stroke={INK} strokeWidth="2" opacity="0.35" />
+      ))}
+      {tips.map(([tx, ty]) => (
+        <g key={`l${tx}`}>
+          <ellipse cx={tx - 14} cy={ty - 4} rx="18" ry="8" fill="#4f8f3a" transform={`rotate(-25 ${tx - 14} ${ty - 4})`} />
+          <ellipse cx={tx + 14} cy={ty - 4} rx="18" ry="8" fill="#43a047" transform={`rotate(25 ${tx + 14} ${ty - 4})`} />
+          <ellipse cx={tx} cy={ty - 14} rx="8" ry="16" fill="#4caf50" />
+          <g transform={`translate(${tx} ${ty - 6})`} strokeWidth="2">
+            {[0, 72, 144, 216, 288].map((deg) => (
+              <ellipse key={deg} cx="0" cy="-6" rx="4.5" ry="7" fill="#fffdf5" transform={`rotate(${deg})`} />
+            ))}
+            <circle r="4" fill="#ffd23f" />
+          </g>
+        </g>
       ))}
     </g>
   );

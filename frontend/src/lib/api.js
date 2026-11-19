@@ -9,7 +9,7 @@ export class ApiError extends Error {
 }
 
 /** Memanggil API Laravel (di-proxy Vite ke /api). */
-export async function api(path, { method = 'GET', body, token } = {}) {
+export async function api(path, { method = 'GET', body, token, headers = {} } = {}) {
   let res;
   try {
     res = await fetch(`/api${path}`, {
@@ -18,6 +18,7 @@ export async function api(path, { method = 'GET', body, token } = {}) {
         Accept: 'application/json',
         ...(body ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
       },
       body: body ? JSON.stringify(body) : undefined,
     });

@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminMonitorController;
 use App\Http\Controllers\GameSessionController;
+use App\Http\Middleware\EnsureAdminPasscode;
 use Illuminate\Support\Facades\Route;
 
 // Buat ruangan baru / gabung ke ruangan (tanpa token).
@@ -16,10 +18,19 @@ Route::middleware('auth:room')->group(function () {
         ->middleware('throttle:30,1');
     Route::post('/rooms/{roomCode}/chapter1-complete', [GameSessionController::class, 'chapter1Complete'])
         ->middleware('throttle:30,1');
+    // Catatan uji kode yang gagal (untuk deteksi "Butuh Pendampingan" di dashboard fasilitator).
+    Route::post('/rooms/{roomCode}/chapter1-attempt', [GameSessionController::class, 'chapter1Attempt'])
+        ->middleware('throttle:30,1');
 
     // Chapter 2: operasional kedai.
     Route::post('/rooms/{roomCode}/serve-order', [GameSessionController::class, 'serveOrder'])
         ->middleware('throttle:120,1');
     Route::post('/rooms/{roomCode}/restock', [GameSessionController::class, 'restock'])
         ->middleware('throttle:120,1');
+});
+
+// Mode Fasilitator. Membutuhkan header: X-Admin-Passcode: <PIN dari ADMIN_PASSCODE>
+Route::prefix('admin')->middleware([EnsureAdminPasscode::class, 'throttle:120,1'])->group(function () {
+    Route::get('/rooms', [AdminMonitorController::class, 'index']);
+    Route::delete('/rooms/{roomCode}', [AdminMonitorController::class, 'destroy']);
 });

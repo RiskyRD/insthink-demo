@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\AdminMonitorPulse;
 use App\Events\GamePhaseChanged;
 use App\Events\RoomUpdated;
 use App\Events\ShopStateUpdated;
@@ -105,6 +106,7 @@ class GameSessionController extends Controller
         if (! $isNewRoom) {
             $this->safeBroadcast(new RoomUpdated($room->room_code, $room->publicSummary(), 'player_joined'));
         }
+        $this->notifyMonitor();
 
         return response()->json([
             'session_token' => $plainToken,
@@ -205,6 +207,42 @@ class GameSessionController extends Controller
         $this->broadcastAll($events);
 
         return response()->json($this->projector->state($room, $me));
+    }
+
+    /**
+     * POST /api/rooms/{roomCode}/chapter1-attempt
+     * Mencatat uji kode Chapter 1 yang GAGAL (is_passed = false) di mission_logs.
+     * Tidak mengubah fase maupun state kedai; hanya dipakai dashboard fasilitator.
+     */
+    public function chapter1Attempt(string $roomCode, Request $request): JsonResponse
+    {
+        $player = $this->authorizePlayer($request, $roomCode);
+
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:5000'],
+            'output' => ['nullable', 'string', 'max:5000'],
+            'error_category' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        $room = $player->room;
+        if ($room->phase !== Room::PHASE_CHAPTER1 || $player->is_chapter1_done) {
+            return response()->json(['logged' => false]);
+        }
+
+        $startedAt = $room->phase_started_at ?? $room->started_at;
+        $room->missionLogs()->create([
+            'room_player_id' => $player->id,
+            'mission_number' => 1,
+            'submitted_code' => $data['code'],
+            'terminal_output' => $data['output'] ?? '',
+            'is_passed' => false,
+            'error_category' => $data['error_category'] ?? null,
+            'duration_seconds' => $startedAt ? max(0, (int) $startedAt->diffInSeconds(now())) : 0,
+        ]);
+
+        $this->notifyMonitor();
+
+        return response()->json(['logged' => true], 201);
     }
 
     /**
@@ -419,6 +457,16 @@ class GameSessionController extends Controller
         foreach ($events as $event) {
             $this->safeBroadcast($event);
         }
+
+        if ($events) {
+            $this->notifyMonitor();
+        }
+    }
+
+    /** Sinyal tanpa data ke dashboard fasilitator (channel publik admin.monitor). */
+    private function notifyMonitor(): void
+    {
+        $this->safeBroadcast(new AdminMonitorPulse);
     }
 
     /** Kegagalan Reverb tidak boleh membatalkan state yang sudah tersimpan. */

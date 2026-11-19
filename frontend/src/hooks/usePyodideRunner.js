@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const WORKER_URL = '/pyodide-worker.js';
+// Query versi memaksa browser/Cloudflare mengambil worker terbaru, bukan salinan cache.
+const WORKER_URL = '/pyodide-worker.js?v=2';
 const DEFAULT_TIMEOUT_MS = 5000;
 
 /**

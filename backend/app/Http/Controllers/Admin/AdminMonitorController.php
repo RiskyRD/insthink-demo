@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Events\AdminMonitorPulse;
+use App\Game\ScoreCalculator;
 use App\Http\Controllers\Controller;
 use App\Models\Room;
 use App\Models\RoomPlayer;
@@ -32,6 +33,10 @@ class AdminMonitorController extends Controller
             ->latest('id')
             ->limit(self::MAX_ROOMS)
             ->get();
+
+        // Log misi hanya dimuat untuk tim yang sudah lulus (dipakai menghitung skor Papan Peringkat).
+        $rooms->filter(fn (Room $room) => $room->phase === Room::PHASE_FINISHED)
+            ->load('missionLogs:id,room_id,mission_number,is_passed,attempt_count');
 
         return response()->json([
             'server_time' => now()->toIso8601String(),
@@ -82,6 +87,8 @@ class AdminMonitorController extends Controller
             'phase_started_at' => $room->phase_started_at?->toIso8601String(),
             'completed_at' => $room->completed_at?->toIso8601String(),
             'last_activity_at' => $lastActivity?->toIso8601String(),
+            // Skor akhir (sama dengan ending.score pemain); null selama tim belum lulus.
+            'score' => $room->phase === Room::PHASE_FINISHED ? ScoreCalculator::forRoom($room) : null,
             'players' => $room->players->map(fn (RoomPlayer $p) => [
                 'name' => $p->player_name,
                 'role' => $p->role,

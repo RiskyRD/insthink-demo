@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle, ArrowLeft, Bug, Clock, Coffee, KeyRound, Loader2, Lock, LogOut, Package, RefreshCw,
+  AlertTriangle, ArrowLeft, Award, Bug, Clock, Coffee, KeyRound, LayoutGrid, Loader2, Lock, LogOut, Package, RefreshCw,
   Search, ShoppingBag, Trash2, Users, Wallet, Wifi, WifiOff,
 } from 'lucide-react';
-import { api, formatRupiah } from '../lib/api';
+import { api, formatDuration, formatRupiah, ROLE_LABEL } from '../lib/api';
 import { createEcho } from '../lib/echo';
 import { AvatarHead } from './game/ShopCharacters';
 import { CARD, TACTILE } from './game/theme';
@@ -22,6 +22,18 @@ const PHASE = {
   chapter3: { label: 'Bab 3: Money Tracker', cls: 'bg-[#c4b5fd]' },
   finished: { label: 'Selesai', cls: 'bg-[#a5d68f]' },
 };
+
+const VIEWS = [
+  { key: 'teams', label: 'Pantau Tim', icon: LayoutGrid },
+  { key: 'board', label: 'Papan Peringkat', icon: Award },
+];
+
+const BOARD_RANGES = [
+  { key: 'day', label: '24 jam terakhir', seconds: 86400 },
+  { key: 'all', label: 'Semua', seconds: null },
+];
+
+const MEDAL = ['bg-[#ffd23f]', 'bg-slate-200', 'bg-[#f4a582]'];
 
 const FILTERS = [
   { key: 'all', label: 'Semua' },
@@ -162,6 +174,8 @@ function Monitor({ pin, initial, onLock, onExit }) {
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   const [confirmRoom, setConfirmRoom] = useState(null);
+  const [view, setView] = useState('teams');
+  const [boardRange, setBoardRange] = useState('day');
   const inFlight = useRef(false);
 
   const load = useCallback(async () => {
@@ -261,6 +275,19 @@ function Monitor({ pin, initial, onLock, onExit }) {
 
   const filterCount = { all: teams.length, help: metrics.help, playing: metrics.active, done: metrics.done };
 
+  // Papan Peringkat: tim lulus, skor tertinggi lalu durasi tersingkat (aturan sama dengan GET /api/leaderboard).
+  const leaderboard = useMemo(() => {
+    const range = BOARD_RANGES.find((r) => r.key === boardRange);
+    const q = query.trim().toLowerCase();
+    return teams
+      .filter((t) => t.phase === 'finished' && t.score)
+      .filter((t) => !range?.seconds || (t.completed_at && secondsSince(t.completed_at, serverNow) <= range.seconds))
+      .sort((a, b) => b.score.total - a.score.total
+        || (a.score.duration_seconds ?? Number.MAX_SAFE_INTEGER) - (b.score.duration_seconds ?? Number.MAX_SAFE_INTEGER))
+      .map((t, i) => ({ ...t, rank: i + 1 }))
+      .filter((t) => !q || t.room_code.toLowerCase().includes(q) || t.players.some((p) => p.name.toLowerCase().includes(q)));
+  }, [teams, boardRange, query, serverNow]);
+
   const deleteRoom = async (code) => {
     await api(`/admin/rooms/${code}`, { method: 'DELETE', headers: { 'X-Admin-Passcode': pin } });
     setData((d) => d && { ...d, rooms: d.rooms.filter((r) => r.room_code !== code) });
@@ -314,9 +341,39 @@ function Monitor({ pin, initial, onLock, onExit }) {
           <MetricCard icon={ShoppingBag} label="Tim Selesai" value={metrics.done} tone="bg-[#d9f0c9]" />
         </section>
 
-        <section aria-label="Filter tim" className="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Tampilan dashboard">
+          {VIEWS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={view === key}
+              onClick={() => setView(key)}
+              className={`${TACTILE} flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-black ${view === key ? 'bg-[#c4562f] text-white' : 'bg-white text-slate-800'}`}
+            >
+              <Icon className="h-4 w-4" aria-hidden /> {label}
+              {key === 'board' && <span className={`rounded-full px-1.5 text-xs ${view === key ? 'bg-white/80 text-slate-900' : 'bg-slate-100'}`}>{metrics.done}</span>}
+            </button>
+          ))}
+        </div>
+
+        <section aria-label={view === 'board' ? 'Filter papan peringkat' : 'Filter tim'} className="mt-4 flex flex-col gap-3 md:flex-row md:items-center">
           <div className="flex flex-wrap gap-2" role="tablist">
-            {FILTERS.map((f) => (
+            {view === 'board' && BOARD_RANGES.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                role="tab"
+                aria-selected={boardRange === r.key}
+                onClick={() => setBoardRange(r.key)}
+                className={`rounded-full border-2 border-slate-800 px-3 py-1.5 text-sm font-bold shadow-[2px_2px_0px_#1e293b] transition-all active:translate-y-[1px] active:shadow-none ${
+                  boardRange === r.key ? 'bg-[#ffd23f] text-slate-900' : 'bg-white text-slate-700 hover:bg-[#fff1c1]'
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+            {view === 'teams' && FILTERS.map((f) => (
               <button
                 key={f.key}
                 type="button"
@@ -349,6 +406,8 @@ function Monitor({ pin, initial, onLock, onExit }) {
           <p className="mt-10 flex items-center justify-center gap-2 text-slate-600">
             <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> Memuat data kelas…
           </p>
+        ) : view === 'board' ? (
+          <Leaderboard entries={leaderboard} />
         ) : visible.length === 0 ? (
           <p className={`${CARD} mt-6 p-8 text-center font-semibold text-slate-600`}>
             {teams.length === 0 ? 'Belum ada ruangan. Tim yang membuat ruangan akan muncul di sini.' : 'Tidak ada tim yang cocok dengan filter atau pencarian.'}
@@ -361,7 +420,7 @@ function Monitor({ pin, initial, onLock, onExit }) {
           </section>
         )}
 
-        <p className="mt-6 text-center text-xs text-slate-500">
+        <p className={`mt-6 text-center text-xs text-slate-500 ${view === 'board' ? 'hidden' : ''}`}>
           Badge “Butuh Pendampingan” muncul jika tim gagal uji kode ≥ {thresholds.failed_attempts} kali,
           error ≥ {thresholds.chapter3_failed_attempts ?? DEFAULT_THRESHOLDS.chapter3_failed_attempts} kali di Bab 3: Money Tracker,
           atau tidak ada aktivitas lebih dari {Math.round(thresholds.idle_seconds / 60)} menit pada fase aktif.
@@ -370,6 +429,73 @@ function Monitor({ pin, initial, onLock, onExit }) {
 
       {confirmRoom && <ConfirmDelete code={confirmRoom} onCancel={() => setConfirmRoom(null)} onConfirm={deleteRoom} />}
     </div>
+  );
+}
+
+/* ---------- Papan Peringkat ---------- */
+
+function Leaderboard({ entries }) {
+  if (entries.length === 0) {
+    return (
+      <p className={`${CARD} mt-5 p-8 text-center font-semibold text-slate-600`}>
+        Belum ada tim yang lulus pada rentang ini. Tim yang menyelesaikan Bab 3 akan muncul di sini.
+      </p>
+    );
+  }
+
+  return (
+    <section className={`${CARD} mt-5 overflow-hidden`} aria-label="Papan peringkat tim">
+      <div className="hidden grid-cols-[3rem_6rem_minmax(0,1fr)_5.5rem_5.5rem_5.5rem_5.5rem_6rem] gap-3 border-b-2 border-slate-800 bg-[#fff1c1] px-4 py-2 text-[11px] font-black uppercase tracking-wider text-slate-700 lg:grid">
+        <span>#</span>
+        <span>Room</span>
+        <span>Tim</span>
+        <span className="text-right">Lulus</span>
+        <span className="text-right">Bonus</span>
+        <span className="text-right">Coding</span>
+        <span className="text-right">Durasi</span>
+        <span className="text-right">Skor</span>
+      </div>
+      <ol>
+        {entries.map((e) => (
+          <li
+            key={e.room_code}
+            className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-3 border-b-2 border-slate-100 px-4 py-2.5 last:border-b-0 lg:grid-cols-[3rem_6rem_minmax(0,1fr)_5.5rem_5.5rem_5.5rem_5.5rem_6rem]"
+          >
+            <span className={`grid h-9 w-9 place-items-center rounded-full border-2 border-slate-800 font-black ${MEDAL[e.rank - 1] ?? 'bg-white'}`}>{e.rank}</span>
+            <span className="hidden font-mono text-sm font-black tracking-widest text-slate-900 lg:block">{e.room_code}</span>
+            <span className="min-w-0">
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                {e.players.map((p) => (
+                  <span key={p.role} className="flex min-w-0 items-center gap-1.5" title={`${p.name} · ${ROLE_LABEL[p.role]}`}>
+                    <AvatarHead role={p.role} gender={p.avatar_skin} size={28} />
+                    <span className="min-w-0">
+                      <span className="block max-w-[10rem] truncate text-sm font-black leading-tight text-slate-900">{p.name}</span>
+                      <span className="block text-[10px] font-semibold leading-tight text-slate-500">{ROLE_LABEL[p.role]}</span>
+                    </span>
+                  </span>
+                ))}
+              </span>
+              <span className="mt-0.5 block text-xs text-slate-500 lg:hidden">
+                <span className="font-mono font-bold">{e.room_code}</span> · {formatDuration(e.score.duration_seconds)} · laba {formatRupiah(e.score.profit)}
+              </span>
+            </span>
+            <span className="hidden text-right font-mono text-sm text-slate-700 lg:block">{e.score.completion}</span>
+            <span className="hidden text-right font-mono text-sm text-slate-700 lg:block" title={`Laba ${formatRupiah(e.score.profit)}`}>{e.score.bonus}</span>
+            <span
+              className="hidden text-right font-mono text-sm text-slate-700 lg:block"
+              title={`${e.score.chapter1_failures}× gagal uji Bab 1 · ${e.score.chapter3_attempts}× percobaan Bab 3`}
+            >
+              {e.score.coding}
+            </span>
+            <span className="hidden text-right font-mono text-sm text-slate-700 lg:block">{formatDuration(e.score.duration_seconds)}</span>
+            <span className="text-right font-mono text-lg font-black text-slate-900">
+              {e.score.total}
+              <span className="block text-[10px] font-semibold text-slate-500">/ {e.score.max}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 

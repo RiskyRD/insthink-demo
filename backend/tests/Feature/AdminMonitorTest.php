@@ -91,6 +91,28 @@ class AdminMonitorTest extends TestCase
             ->assertJsonPath('rooms.0.players.1.avatar_skin', 'male');
     }
 
+    public function test_finished_rooms_include_score_for_leaderboard(): void
+    {
+        [$code] = $this->makeTeam();
+        $this->makeTeam(); // tim kedua masih di prolog
+
+        Room::where('room_code', $code)->update([
+            'phase' => 'finished',
+            'status' => 'completed',
+            'shared_money' => 110000,
+            'started_at' => now()->subMinutes(30),
+            'completed_at' => now(),
+        ]);
+
+        $rooms = collect($this->getJson('/api/admin/rooms', self::PIN)->assertOk()->json('rooms'));
+        $finished = $rooms->firstWhere('room_code', $code);
+
+        // 1000 lulus + 600 (laba Rp60.000) + 300 tanpa kesalahan
+        $this->assertSame(1900, $finished['score']['total']);
+        $this->assertSame(1800, $finished['score']['duration_seconds']);
+        $this->assertNull($rooms->firstWhere('room_code', '!=', $code)['score']);
+    }
+
     public function test_attempt_is_ignored_outside_chapter1(): void
     {
         [$code, $cashier] = $this->makeTeam();

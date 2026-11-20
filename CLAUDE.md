@@ -32,9 +32,10 @@ Aplikasi terdiri dari tiga langkah belajar berurutan ditambah satu minigame bonu
 Dashboard panitia (`AdminMonitorDashboard.jsx`) untuk memantau semua tim. Dibuka lewat rute `/admin` atau tombol kecil "Mode Fasilitator" di Main Menu.
 
 - **PIN:** endpoint `/api/admin/*` wajib header `X-Admin-Passcode` yang cocok dengan `ADMIN_PASSCODE` di `.env` (kosong → 503). Tebakan salah dibatasi 10×/menit per IP. PIN valid disimpan di `sessionStorage`.
-- **Endpoint:** `GET /api/admin/rooms` (ringkasan semua ruangan, `failed_attempts`, `last_activity_at`, `server_time`), `DELETE /api/admin/rooms/{code}` (hapus ruangan beserta pemain & log).
+- **Endpoint:** `GET /api/admin/rooms` (ringkasan semua ruangan, `failed_attempts`, `last_activity_at`, `server_time`, dan `score` dari `ScoreCalculator` untuk ruangan `finished`), `DELETE /api/admin/rooms/{code}` (hapus ruangan beserta pemain & log).
 - **Log uji gagal:** `POST /api/rooms/{code}/chapter1-attempt` (field `code`, `output`) mencatat `mission_logs.is_passed = false`. Hanya untuk dashboard; tidak mengubah fase atau state kedai.
 - **Realtime:** channel publik `admin.monitor`, event `admin.room_changed`. Payload sengaja tanpa data siswa; dashboard mengambil data lengkap lewat API ber-PIN. Polling cadangan 5 detik saat Reverb putus.
+- **Papan Peringkat:** tab "Papan Peringkat" di dashboard menyusun tim yang lulus (skor tertinggi, lalu durasi tersingkat) dari data `GET /api/admin/rooms`, lengkap dengan kode room, rincian skor, dan filter 24 jam terakhir / semua.
 - **Butuh Pendampingan:** gagal uji kode ≥ 4 kali atau tidak ada aktivitas > 4 menit pada fase selain `finished` (ambang di `config/insthink.php`).
 
 ## Universal Hint System
